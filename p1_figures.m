@@ -1,6 +1,7 @@
 function p1_figures()
 % P1_FIGURES  Group-level figures (PLOT step only; no statistics computed).
 % Reads the outputs of g1-g4 and draws:
+%   Fig3_SimMatrices  group-average Isim and Csim matrices, YA and OA (old Fig3)
 %   Fig_Ispec   t-map (mean over cluster channels) with cluster outline,
 %               cluster topography, Isim/Csim and Ispec per age group,
 %               split halves
@@ -48,6 +49,27 @@ scatter(ax, P.Ispec_half1(ya), P.Ispec_half2(ya), 25, col.YA, 'filled'); hold(ax
 scatter(ax, P.Ispec_half1(~ya), P.Ispec_half2(~ya), 25, col.OA, 'filled');
 xlabel(ax, 'Ispec, half 1'); ylabel(ax, 'Ispec, half 2'); title(ax, 'Split half (random categories)');
 save_fig(f, fullfile(C.dir.figs, 'Fig_Ispec'));
+
+%% Fig3_SimMatrices (group-average similarity, as the old Fig3)
+GM = load(fullfile(C.dir.group, 'ispec_group_means.mat'));
+f = figure('Units', 'centimeters', 'Position', [2 2 26 22], 'Color', 'w');
+outline = double(squeeze(any(GI.mask(chI,:,:), 1)))';
+panels = {'YA','Isim','Younger - item similarity'; 'YA','Csim','Younger - category similarity'; ...
+          'OA','Isim','Older - item similarity';   'OA','Csim','Older - category similarity'};
+mats = cell(4,1);
+for k = 1:4, mats{k} = squeeze(mean(GM.GA.(panels{k,1}).(panels{k,2})(chI,:,:), 1))'; end
+lim = [min(cellfun(@(m) min(m(:)), mats)) max(cellfun(@(m) max(m(:)), mats))];
+for k = 1:4
+    ax = subplot(2,2,k);
+    imagesc(ax, GM.time, GM.time, mats{k}); axis(ax, 'xy', 'square'); hold(ax, 'on');
+    contour(ax, GM.time, GM.time, outline, [0.5 0.5], 'k', 'LineWidth', 1);
+    colormap(ax, flipud(autumn(256))); caxis(ax, lim); colorbar(ax);
+    xlabel(ax, 'Presentation 1 / exemplar A time (s)'); ylabel(ax, 'Presentation 2 / exemplar B time (s)');
+    title(ax, panels{k,3});
+end
+annotation(f, 'textbox', [0 0.95 1 0.05], 'String', sprintf('Corrected similarity (Fisher z), mean over the %d Ispec cluster channels; outline = Ispec cluster', sum(chI)), ...
+    'EdgeColor', 'none', 'HorizontalAlignment', 'center', 'FontSize', 10);
+save_fig(f, fullfile(C.dir.figs, 'Fig3_SimMatrices'));
 
 %% Fig_SME
 f = figure('Units', 'centimeters', 'Position', [2 2 34 10], 'Color', 'w');

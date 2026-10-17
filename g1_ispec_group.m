@@ -12,6 +12,10 @@ function g1_ispec_group()
 % Output:
 %   C.dir.group/ispec_cluster.mat   stat, mask [chan x t1 x t2], clusterChannels,
 %                                   timeExtent [s], P (person table)
+%   C.dir.group/ispec_group_means.mat   GA.YA/OA.Isim, .Csim (corrected) and
+%                                   .rawIsim, .rawCsim: mean over persons of the
+%                                   per-person mean maps [chan x t1 x t2]
+%                                   (= the old grand averages; for Fig3)
 %   C.dir.tables/person_ispec.csv   ID, YA, Isim, Csim, Ispec, rawIsim, rawCsim,
 %                                   refIsim, refCsim, drift
 
@@ -65,6 +69,20 @@ P = table(ids(:), (1:n)' <= nYA, 'VariableNames', {'ID','YA'});
 P.Isim    = inCl(M.meanI);    P.Csim    = inCl(M.meanC);    P.Ispec = P.Isim - P.Csim;
 P.rawIsim = inCl(M.rawMeanI); P.rawCsim = inCl(M.rawMeanC);
 P.refIsim = inCl(M.refMeanI); P.refCsim = inCl(M.refMeanC); P.drift = P.refIsim - P.refCsim;
+
+%% 4. Group-average similarity matrices (= the old grand-average files,
+%  for the Fig3 similarity-matrix figure): mean over persons per age group
+%  of the per-person mean corrected Isim and Csim maps (and uncorrected)
+GA = struct();
+grp = struct('YA', (1:n)' <= nYA, 'OA', (1:n)' > nYA);
+for g = {'YA', 'OA'}
+    ix = grp.(g{1});
+    GA.(g{1}).Isim    = squeeze(mean(M.meanI(ix,:,:,:), 1));
+    GA.(g{1}).Csim    = squeeze(mean(M.meanC(ix,:,:,:), 1));
+    GA.(g{1}).rawIsim = squeeze(mean(M.rawMeanI(ix,:,:,:), 1));
+    GA.(g{1}).rawCsim = squeeze(mean(M.rawMeanC(ix,:,:,:), 1));
+end
+save(fullfile(C.dir.group, 'ispec_group_means.mat'), 'GA', 'label', 'time', '-v7.3');
 
 save(fullfile(C.dir.group, 'ispec_cluster.mat'), 'stat', 'mask', 'clusterChannels', 'timeExtent', ...
     'sigPos', 'sigNeg', 'P', 'label', 'time', '-v7.3');

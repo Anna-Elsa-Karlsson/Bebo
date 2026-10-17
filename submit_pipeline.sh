@@ -9,6 +9,7 @@
 #   G3  single-trial tables + split half    g3_extract.m          <- G1, S2
 #   G4  person-level statistics             g4_person_stats.m     <- G2, G3
 #   P1  group-level figures (plots only)    p1_figures.m          <- G4
+#   B1  behaviour (figure + stats)          b1_behavior.m         (no dependencies)
 # Each job starts only if the jobs it needs FINISHED WITHOUT ERROR.
 # The trial-level models (R/models_results.R) run locally on the tables.
 #
@@ -19,6 +20,7 @@
 #   bash submit_pipeline.sh group    only G1-G4 (S1 and S2 already done)
 #   bash submit_pipeline.sh g3       only G3, G4, P1
 #   bash submit_pipeline.sh figs     only P1 (figures)
+#   bash submit_pipeline.sh behavior only B1 (behaviour)
 # Output: ../Results_v2/   Logs: ~/logs/
 
 cd "$(dirname "$0")" || exit 1
@@ -28,7 +30,7 @@ NSUBJ=$(grep -c . "$SUBJLIST")   # non-empty lines
 START=${1:-all}
 mkdir -p "$HOME/logs"
 
-case "$START" in all|one|group|g3|figs) ;; *) echo "Unknown start point '$START' (all, one, group, g3 or figs)"; exit 1 ;; esac
+case "$START" in all|one|group|g3|figs|behavior) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs or behavior)"; exit 1 ;; esac
 if [ ! -d "$REPO/../PreprocData" ]; then echo "PreprocData not found next to this folder"; exit 1; fi
 
 # MATLAB call that exits with an error code when the function fails
@@ -59,6 +61,11 @@ submit() {
 }
 
 S1=""; S2=""; G1=""
+if [ "$START" = behavior ]; then
+  B1=$(submit B1_behavior 0:30:0 8gb "" "$(mcall 'b1_behavior')") || exit 1
+  echo "B1 behaviour: $B1"
+  exit 0
+fi
 if [ "$START" = one ]; then
   S1=$(submit S1_gamma 12:0:0 40gb "" "$(mcall 's1_gamma_subject($SUBJ)')" "1") || exit 1
   S2=$(submit S2_alpha 4:0:0 20gb "" "$(mcall 's2_alpha_subject($SUBJ)')" "1") || exit 1
@@ -86,4 +93,8 @@ if [ "$START" != figs ]; then
 fi
 P1=$(submit P1_figures 1:0:0 16gb "$G4" "$(mcall 'p1_figures')") || exit 1
 echo "P1 figures:                $P1"
+if [ "$START" != figs ]; then
+  B1=$(submit B1_behavior 0:30:0 8gb "" "$(mcall 'b1_behavior')") || exit 1
+  echo "B1 behaviour:              $B1"
+fi
 echo "All submitted. Check with: squeue -u \$USER"

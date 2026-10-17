@@ -56,9 +56,10 @@ C.gamma.t_ftimwin = 0.4;                % s
 C.gamma.toi       = 0:0.02:1.7;         % s, 20 ms steps
 C.gamma.pad       = 6;                  % s
 C.gamma.boscBand  = [35 100];           % aperiodic fit on the analysis band
-% Reference matched on lag and session position (per pair)
-C.lag.nRef     = 20;     % the 20 same-lag reference pairs closest in session position ...
-C.lag.maxWiden = 2;      % ... adding lags +/-1, then +/-2 if fewer than 20 exist
+% Reference matched on lag and presentation: ALL unrelated pairs with the
+% same lag and presentation structure
+C.lag.minRef   = 20;     % if fewer than 20 exist at the exact lag ...
+C.lag.maxWiden = 2;      % ... add lags +/-1, then +/-2
 
 %% 1b. Alpha SME + single-trial power
 C.alpha.foi    = 2:2:30;                % Hz

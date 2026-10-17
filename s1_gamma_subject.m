@@ -10,10 +10,11 @@ function s1_gamma_subject(subj)
 %   5. similarity of every Isim and Csim pair: Pearson r between the two
 %      trials' spectra at every channel x time1 x time2, Fisher z (earlier
 %      trial = time1); same values as spectral_rsa.m, computed faster
-%   6. reference for every Isim and Csim pair: mean similarity of the 20
-%      reference pairs (two analysed trials of DIFFERENT categories) with
-%      the same lag whose midpoint is closest in the session (lags +/-1,
-%      +/-2 added if fewer than 20 exist) -- matched on lag AND position
+%   6. reference for every Isim and Csim pair: mean similarity of ALL
+%      reference pairs (two analysed trials of DIFFERENT categories, same
+%      presentation structure: Isim pres 1 -> pres 2, Csim pres 1 -> pres 1)
+%      with exactly the same lag (lags +/-1, +/-2 added if fewer than 20
+%      exist) -- matched on lag and presentation
 %   7. corrected similarity = pair similarity - its reference
 %   8. per-person t-map, corrected Isim vs Csim pairs: FieldTrip
 %      ft_freqstatistics, analytic indepsamplesT (as the old pipeline;
@@ -27,8 +28,8 @@ function s1_gamma_subject(subj)
 %                  reference subtracted (corrected = raw - ref; the drift
 %                  check uses refMeanI - refMeanC)
 %   PI, PC         pair tables (trials, item/category, condition, Acc, lag,
-%                  position, n reference pairs, lag widening, position
-%                  distance of the farthest reference, mean reference similarity)
+%                  pair midpoint in the session, n reference pairs, lag
+%                  widening, mean reference similarity)
 %   T              analysed trials (bebo_trials.m)
 %   label, time    channel labels, time axis
 % Trial log (C.dir.trialLog/<ID>_gamma_log.csv): counts, lags, references.
@@ -99,48 +100,54 @@ for k = 1:size(pI,1), rawI(k,:,:,:) = sim_pair(Z, T.dataRow(pI(k,1)), T.dataRow(
 rawC = zeros([size(pC,1) nCh nT nT], 'single');
 for k = 1:size(pC,1), rawC(k,:,:,:) = sim_pair(Z, T.dataRow(pC(k,1)), T.dataRow(pC(k,2))); end
 
-%% 6. Reference matched on lag AND session position (per pair)
-% Candidate reference pairs: all pairs of analysed trials from different
-% categories, earlier trial first. For each Isim/Csim pair: the nRef
-% candidates with the same lag (widening to +/-1, +/-2 if fewer exist)
-% whose midpoint in the session is CLOSEST to the pair's midpoint.
-% Matching position as well as lag is needed because slow changes over a
-% session (fatigue, impedance, ...) are not uniform: a lag-only reference
-% left a bias that followed session position in the simulations
-% (test/check_lag_correction.m). Deterministic -- no random draw.
+%% 6. Reference matched on lag AND presentation (decided 2026-10-17)
+% Reference pairs: two analysed trials from DIFFERENT categories, earlier
+% trial first, with the SAME presentation structure as the pair type:
+%   Isim reference = (presentation 1 of item Y, presentation 2 of an
+%                     unrelated item Z)
+%   Csim reference = (presentation 1, presentation 1)
+% For every lag that occurs: reference = mean similarity of ALL such pairs
+% with exactly that lag (lags +/-1, then +/-2 added if fewer than
+% C.lag.minRef exist). No position matching, no random draw. Second
+% presentations differ from first ones (repetition effects), so the
+% presentation structure must match; whether the corrected values still
+% depend on session position is checked in g4_person_stats.m.
 nTr = height(T);
-[ia, ib] = find(triu(true(nTr), 1));
-okCat = T.category(ia) ~= T.category(ib);
-ia = ia(okCat); ib = ib(okCat);
-refLag = T.trialNr(ib) - T.trialNr(ia);
-refMid = (T.trialNr(ia) + T.trialNr(ib)) / 2;
+[ia0, ib0] = find(triu(true(nTr), 1));
+okCat = T.category(ia0) ~= T.category(ib0);
+ia0 = ia0(okCat); ib0 = ib0(okCat);
+candI = T.pres(ia0) == 1 & T.pres(ib0) == 2;     % reference for Isim
+candC = T.pres(ia0) == 1 & T.pres(ib0) == 1;     % reference for Csim
 
-    function [ref, info] = local_reference(pairs, lagsP)
-        ref = zeros([size(pairs,1) nCh nT nT], 'single');
-        info = zeros(size(pairs,1), 4);   % nRef, widen, max position distance, mean ref similarity
-        for k = 1:size(pairs,1)
-            mid = (T.trialNr(pairs(k,1)) + T.trialNr(pairs(k,2))) / 2;
+    function [ref, info] = lag_reference(lagsP, cand0)
+        % one reference map per lag (shared by all pairs with that lag)
+        ia = ia0(cand0); ib = ib0(cand0);
+        refLag = T.trialNr(ib) - T.trialNr(ia);
+        ul = unique(lagsP);
+        refL = zeros([numel(ul) nCh nT nT], 'single');
+        infoL = zeros(numel(ul), 3);   % nRef, widen, mean ref similarity
+        for k = 1:numel(ul)
             for w = 0:C.lag.maxWiden
-                cand = find(abs(refLag - lagsP(k)) <= w);
-                if numel(cand) >= C.lag.nRef, break, end
+                sel = find(abs(refLag - ul(k)) <= w);
+                if numel(sel) >= C.lag.minRef, break, end
             end
-            if isempty(cand)
-                error('s1_gamma_subject:noRef', '[%s] no reference pair for lag %d', subj, lagsP(k));
+            if isempty(sel)
+                error('s1_gamma_subject:noRef', '[%s] no reference pair for lag %d', subj, ul(k));
             end
-            [dist, o] = sort(abs(refMid(cand) - mid));
-            n = min(C.lag.nRef, numel(cand));
-            sel = cand(o(1:n));
             acc = zeros(nCh, nT, nT);
-            for q = 1:n, acc = acc + double(sim_pair(Z, T.dataRow(ia(sel(q))), T.dataRow(ib(sel(q))))); end
-            ref(k,:,:,:) = single(acc / n);
-            info(k,:) = [n, w, dist(n), mean(acc(:)) / n];
+            for q = 1:numel(sel), acc = acc + double(sim_pair(Z, T.dataRow(ia(sel(q))), T.dataRow(ib(sel(q))))); end
+            refL(k,:,:,:) = single(acc / numel(sel));
+            infoL(k,:) = [numel(sel), w, mean(acc(:)) / numel(sel)];
         end
+        [~, kk] = ismember(lagsP, ul);
+        ref = refL(kk,:,:,:);
+        info = infoL(kk,:);
     end
 
-[refI, infoI] = local_reference(pI, lagI);
-[refC, infoC] = local_reference(pC, lagC);
-if any([infoI(:,1); infoC(:,1)] < C.lag.nRef)
-    warning('s1_gamma_subject:fewRef', '[%s] %d pair(s) with fewer than %d reference pairs', subj, sum([infoI(:,1); infoC(:,1)] < C.lag.nRef), C.lag.nRef);
+[refI, infoI] = lag_reference(lagI, candI);
+[refC, infoC] = lag_reference(lagC, candC);
+if any([infoI(:,1); infoC(:,1)] < C.lag.minRef)
+    warning('s1_gamma_subject:fewRef', '[%s] %d pair(s) with fewer than %d reference pairs', subj, sum([infoI(:,1); infoC(:,1)] < C.lag.minRef), C.lag.minRef);
 end
 
 %% 7. Corrected similarity
@@ -176,15 +183,15 @@ meanI = squeeze(mean(double(simI), 1)); meanC = squeeze(mean(double(simC), 1));
 
 %% Pair tables
 PI = table(pI(:,1), pI(:,2), T.item(pI(:,1)), T.category(pI(:,1)), T.exemplar(pI(:,1)), ...
-    T.catSize(pI(:,1)), T.itemRep(pI(:,1)), T.Acc(pI(:,1)), lagI, T.trialNr(pI(:,1)), ...
-    infoI(:,1), infoI(:,2), infoI(:,3), infoI(:,4), ...
-    'VariableNames', {'tA','tB','item','category','exemplar','catSize','itemRep','Acc','lag','posA', ...
-    'nRef','widen','refPosDist','refSim'});
+    T.catSize(pI(:,1)), T.itemRep(pI(:,1)), T.Acc(pI(:,1)), lagI, ...
+    (T.trialNr(pI(:,1)) + T.trialNr(pI(:,2))) / 2, infoI(:,1), infoI(:,2), infoI(:,3), ...
+    'VariableNames', {'tA','tB','item','category','exemplar','catSize','itemRep','Acc','lag','pos', ...
+    'nRef','widen','refSim'});
 PC = table(pC(:,1), pC(:,2), T.item(pC(:,1)), T.item(pC(:,2)), T.category(pC(:,1)), ...
     T.exemplar(pC(:,1)), T.exemplar(pC(:,2)), T.catSize(pC(:,1)), T.Acc(pC(:,1)), T.Acc(pC(:,2)), ...
-    lagC, T.trialNr(pC(:,1)), infoC(:,1), infoC(:,2), infoC(:,3), infoC(:,4), ...
+    lagC, (T.trialNr(pC(:,1)) + T.trialNr(pC(:,2))) / 2, infoC(:,1), infoC(:,2), infoC(:,3), ...
     'VariableNames', {'tA','tB','itemA','itemB','category','exemplarA','exemplarB','catSize','AccA','AccB', ...
-    'lag','posA','nRef','widen','refPosDist','refSim'});
+    'lag','pos','nRef','widen','refSim'});
 
 %% Save
 save(fullfile(C.dir.gammaSubj, [subj '_gamma.mat']), 'simI', 'simC', 'tmap', 'meanI', 'meanC', ...
@@ -193,13 +200,13 @@ save(fullfile(C.dir.gammaSubj, [subj '_gamma.mat']), 'simI', 'simC', 'tmap', 'me
 %% Trial log
 tlog = table(string(subj), height(T), sum(T.pres==1), sum(T.Acc(T.pres==1)), sum(1-T.Acc(T.pres==1)), nI, nC, ...
     median(lagI), min(lagI), max(lagI), median(lagC), min(lagC), max(lagC), ...
-    min([infoI(:,1); infoC(:,1)]), sum([infoI(:,2); infoC(:,2)] > 0), median([infoI(:,3); infoC(:,3)]), max([infoI(:,3); infoC(:,3)]), ...
+    min([infoI(:,1); infoC(:,1)]), median([infoI(:,1); infoC(:,1)]), sum([infoI(:,2); infoC(:,2)] > 0), ...
     'VariableNames', {'ID','nTrials','nItems','nOld','nSimilar','nIsim','nCsim', ...
     'lagI_median','lagI_min','lagI_max','lagC_median','lagC_min','lagC_max', ...
-    'minRefPerPair','nPairsWidened','refPosDist_median','refPosDist_max'});
+    'minRefPerPair','medianRefPerPair','nPairsWidened'});
 writetable(tlog, fullfile(C.dir.trialLog, [subj '_gamma_log.csv']));
-fprintf('[%s] done: Isim %d, Csim %d pairs; lags Isim %d-%d, Csim %d-%d; references: min %d per pair, position distance median %.0f, max %.0f\n', ...
-    subj, nI, nC, min(lagI), max(lagI), min(lagC), max(lagC), min([infoI(:,1); infoC(:,1)]), median([infoI(:,3); infoC(:,3)]), max([infoI(:,3); infoC(:,3)]));
+fprintf('[%s] done: Isim %d, Csim %d pairs; lags Isim %d-%d, Csim %d-%d; reference pairs per pair: min %d, median %d; widened %d\n', ...
+    subj, nI, nC, min(lagI), max(lagI), min(lagC), max(lagC), min([infoI(:,1); infoC(:,1)]), median([infoI(:,1); infoC(:,1)]), sum([infoI(:,2); infoC(:,2)] > 0));
 end
 
 function S = sim_pair(Z, a, b)

@@ -1,7 +1,8 @@
 function p1_figures()
 % P1_FIGURES  Group-level figures (PLOT step only; no statistics computed).
 % Reads the outputs of g1-g4 and draws:
-%   Fig3_SimMatrices  group-average Isim and Csim matrices, YA and OA (old Fig3)
+%   Fig3_SimMatrices  group-average Isim and Csim matrices, YA and OA, as the
+%                     original Fig3 (all channels, display smoothing 32 ms)
 %   Fig_Ispec   t-map (mean over cluster channels) with cluster outline,
 %               cluster topography, Isim/Csim and Ispec per age group,
 %               split halves
@@ -9,7 +10,7 @@ function p1_figures()
 %               topography, SME per age group
 %   Fig_corr    between-person correlations (numbers from g4)
 %   Fig_lags    lags of Isim / Csim pairs, reference similarity by lag,
-%               drift effect per person, position distance of references
+%               drift effect per person, number of reference pairs
 % R2017b-compatible (subplot, print). Output: C.dir.figs (png + pdf).
 
 C = bebo_config();
@@ -50,25 +51,27 @@ scatter(ax, P.Ispec_half1(~ya), P.Ispec_half2(~ya), 25, col.OA, 'filled');
 xlabel(ax, 'Ispec, half 1'); ylabel(ax, 'Ispec, half 2'); title(ax, 'Split half (random categories)');
 save_fig(f, fullfile(C.dir.figs, 'Fig_Ispec'));
 
-%% Fig3_SimMatrices (group-average similarity, as the old Fig3)
+%% Fig3_SimMatrices (group-average similarity) -- as the original Fig3
+%  (rsa_plots.m): mean over ALL channels, display-only 2-D Gaussian smoothing
+%  (sigma 32 ms, display_smooth_sigma.m), same axes, colour map and colour
+%  limits. Statistics are unaffected by the smoothing.
 GM = load(fullfile(C.dir.group, 'ispec_group_means.mat'));
-f = figure('Units', 'centimeters', 'Position', [2 2 26 22], 'Color', 'w');
-outline = double(squeeze(any(GI.mask(chI,:,:), 1)))';
-panels = {'YA','Isim','Younger - item similarity'; 'YA','Csim','Younger - category similarity'; ...
-          'OA','Isim','Older - item similarity';   'OA','Csim','Older - category similarity'};
-mats = cell(4,1);
-for k = 1:4, mats{k} = squeeze(mean(GM.GA.(panels{k,1}).(panels{k,2})(chI,:,:), 1))'; end
-lim = [min(cellfun(@(m) min(m(:)), mats)) max(cellfun(@(m) max(m(:)), mats))];
+sigmaSmp = 0.032 / mean(diff(GM.time));
+disp3 = @(X) smooth2d(squeeze(mean(double(X), 1)), sigmaSmp);   % mean over channels
+D = struct('YA_I', disp3(GM.GA.YA.Isim), 'YA_C', disp3(GM.GA.YA.Csim), ...
+           'OA_I', disp3(GM.GA.OA.Isim), 'OA_C', disp3(GM.GA.OA.Csim));
+allv = [D.YA_I(:); D.YA_C(:); D.OA_I(:); D.OA_C(:)];
+clim3 = [max(prctile(allv, 5), 0) prctile(allv, 98)];
+if clim3(2) <= clim3(1), clim3 = [prctile(allv, 5) prctile(allv, 98)]; end   % corrected values can be <= 0
+f = figure('Units', 'centimeters', 'Position', [2 2 28 15], 'Color', 'w');
+panels = {'YA_I', 'Younger adults - Item similarity'; 'YA_C', 'Younger adults - Category similarity'; ...
+          'OA_I', 'Older adults - Item similarity';   'OA_C', 'Older adults - Category similarity'};
 for k = 1:4
-    ax = subplot(2,2,k);
-    imagesc(ax, GM.time, GM.time, mats{k}); axis(ax, 'xy', 'square'); hold(ax, 'on');
-    contour(ax, GM.time, GM.time, outline, [0.5 0.5], 'k', 'LineWidth', 1);
-    colormap(ax, flipud(autumn(256))); caxis(ax, lim); colorbar(ax);
-    xlabel(ax, 'Presentation 1 / exemplar A time (s)'); ylabel(ax, 'Presentation 2 / exemplar B time (s)');
-    title(ax, panels{k,3});
+    ax = subplot(2, 2, k);
+    imagesc(ax, GM.time, GM.time, D.(panels{k,1})); set(ax, 'YDir', 'normal');
+    colormap(ax, flipud(autumn(256))); caxis(ax, clim3); colorbar(ax);
+    xlabel(ax, 'Encoding 2nd (time, s)'); ylabel(ax, 'Encoding 1st (time, s)'); title(ax, panels{k,2});
 end
-annotation(f, 'textbox', [0 0.95 1 0.05], 'String', sprintf('Corrected similarity (Fisher z), mean over the %d Ispec cluster channels; outline = Ispec cluster', sum(chI)), ...
-    'EdgeColor', 'none', 'HorizontalAlignment', 'center', 'FontSize', 10);
 save_fig(f, fullfile(C.dir.figs, 'Fig3_SimMatrices'));
 
 %% Fig_SME
@@ -125,8 +128,8 @@ group_dots(ax, {P.drift(ya), P.drift(~ya)}, [1 2], {col.YA, col.OA});
 set(ax, 'XTick', [1 2], 'XTickLabel', {'Younger', 'Older'}); ylabel(ax, 'reference(Isim) - reference(Csim)');
 title(ax, sprintf('Drift effect in the Ispec cluster (mean Ispec %.4f)', mean(P.Ispec)));
 ax = subplot(2,2,4);
-histogram(ax, lagT.refPosDist, 30, 'FaceColor', [0.5 0.5 0.5]);
-xlabel(ax, 'Position distance of the farthest reference pair'); ylabel(ax, 'Pairs');
+histogram(ax, lagT.nRef, 30, 'FaceColor', [0.5 0.5 0.5]);
+xlabel(ax, 'Reference pairs per Isim/Csim pair'); ylabel(ax, 'Pairs');
 save_fig(f, fullfile(C.dir.figs, 'Fig_lags'));
 fprintf('Figures saved to %s\n', C.dir.figs);
 end
@@ -158,6 +161,18 @@ set(f, 'PaperPositionMode', 'auto');
 print(f, [name '.png'], '-dpng', '-r300');
 print(f, [name '.pdf'], '-dpdf', '-painters');
 close(f);
+end
+
+function out = smooth2d(mat, sigmaSmp)
+% 2-D Gaussian smoothing for DISPLAY only (unchanged from rsa_plots.m);
+% normalised by the kernel mass inside the matrix; NaNs ignored.
+if sigmaSmp <= 0, out = mat; return; end
+h = ceil(3*sigmaSmp);
+g = exp(-(-h:h).^2 / (2*sigmaSmp^2)); g = g / sum(g);
+k = g' * g;
+ok = ~isnan(mat); m = mat; m(~ok) = 0;
+out = conv2(m, k, 'same') ./ conv2(double(ok), k, 'same');
+out(~ok) = NaN;
 end
 
 function m = bwr(n)

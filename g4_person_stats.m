@@ -7,6 +7,8 @@ function g4_person_stats()
 %   Age (YA vs OA, Student t, Cohen's d): Ispec, Isim, Csim, SME
 %   Drift check: reference(Isim) - reference(Csim) in the Ispec cluster;
 %     20% of its mean = the largest Ispec the remaining drift could produce
+%   Position check: per person, r between session position and corrected
+%     similarity (Isim, Csim separately), tested against 0 across persons
 %   Correlations: partial r controlling age (full sample), r within YA and
 %     OA, Fisher z YA vs OA. BH-FDR within each family, separately for the
 %     partial r and the Fisher z:
@@ -53,6 +55,24 @@ out('Drift effect = reference(Isim) - reference(Csim): M = %.4f (SD %.4f); uncor
     mean(P.drift), std(P.drift), mean(P.rawIsim - P.rawCsim));
 out('Largest Ispec the remaining drift could produce (20%% of the drift effect): %.4f | observed Ispec M = %.4f\n', ...
     0.2 * mean(P.drift), mean(P.Ispec));
+
+%% Position check (lag correction): do the corrected similarities still
+%  depend on where in the session a pair lies? Per person and pair type:
+%  Pearson r between pair position (midpoint) and corrected similarity;
+%  Fisher-z r tested against 0 across persons (one-sample t).
+out('\n=== POSITION CHECK (lag correction; corrected similarity vs session position) ===\n');
+PR = readtable(fullfile(C.dir.tables, 'pairs.csv'));
+for ty = {'Isim', 'Csim'}
+    zr = nan(n, 1);
+    for s = 1:n
+        ix = PR.ID == ids(s) & strcmp(PR.Type, ty{1});
+        if sum(ix) >= 4, zr(s) = atanh(corr(PR.pos(ix), PR.Sim(ix))); end
+    end
+    [~, p, ~, st] = ttest(zr);
+    out('%s: mean r(position, corrected similarity) = %.3f; t(%d) = %.2f, p = %.4f\n', ...
+        ty{1}, tanh(mean(zr, 'omitnan')), st.df, st.tstat, p);
+    R.position.(ty{1}) = struct('r', tanh(mean(zr, 'omitnan')), 't', st.tstat, 'df', st.df, 'p', p);
+end
 
 %% Correlations
 out('\n=== CORRELATIONS (partial r controlling age; BH-FDR within family) ===\n');

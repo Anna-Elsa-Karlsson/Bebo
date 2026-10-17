@@ -7,15 +7,15 @@ function s2_alpha_subject(subj)
 %      channels
 %   2. TFR: Morlet wavelets, 7 cycles, 2:2:30 Hz, 40 ms steps,
 %      -0.28 to 1.68 s; log10 per trial; NO baseline correction
-%   3. condition averages for the SME: trials of items later called 'old'
-%      and trials of items later called 'similar'
+%   3. condition averages for the SME: presentation-1 trials of items later
+%      called 'old' and of items later called 'similar' (one trial per item)
 %
 % Output (C.dir.alphaSubj/<ID>_alpha.mat):
 %   pow        single-trial log10 power [trial x chan x freq x time], single,
 %              rows = rows of T (used for the trial-level power, plan 2)
-%   powOld, powSim   mean log10 power, later 'old' / later 'similar'
-%                    [chan x freq x time]
-%   nOld, nSim       number of trials in each
+%   powOld, powSim   mean log10 power, later 'old' / later 'similar',
+%                    presentation 1 [chan x freq x time]
+%   nOld, nSim       number of items (presentation-1 trials) in each
 %   T, label, freq, time
 % Trial log (C.dir.trialLog/<ID>_alpha_log.csv).
 
@@ -57,19 +57,22 @@ end
 pow = single(P(T.dataRow, :, :, :));
 clear P
 
-%% 3. Condition averages (SME)
-isOld = T.Acc == 1;
-nOld = sum(isOld); nSim = sum(~isOld);
+%% 3. Condition averages (SME): PRESENTATION 1 only (one trial per item;
+%  decided 2026-10-17). Single-trial power is kept for presentations 1 and 2
+%  (the pair model needs the power of both trials of an Isim pair).
+isOld = T.Acc == 1 & T.pres == 1;
+isSim = T.Acc == 0 & T.pres == 1;
+nOld = sum(isOld); nSim = sum(isSim);
 if nOld < 2 || nSim < 2
     error('s2_alpha_subject:cond', '[%s] too few trials (old %d, similar %d)', subj, nOld, nSim);
 end
 powOld = squeeze(mean(double(pow(isOld,:,:,:)), 1));
-powSim = squeeze(mean(double(pow(~isOld,:,:,:)), 1));
+powSim = squeeze(mean(double(pow(isSim,:,:,:)), 1));
 
 %% Save
 save(fullfile(C.dir.alphaSubj, [subj '_alpha.mat']), 'pow', 'powOld', 'powSim', 'nOld', 'nSim', ...
     'T', 'label', 'freq', 'time', '-v7.3');
-tlog = table(string(subj), height(T), nOld, nSim, 'VariableNames', {'ID','nTrials','nTrialsOld','nTrialsSimilar'});
+tlog = table(string(subj), height(T), nOld, nSim, 'VariableNames', {'ID','nTrials','nItemsOld','nItemsSimilar'});
 writetable(tlog, fullfile(C.dir.trialLog, [subj '_alpha_log.csv']));
-fprintf('[%s] done: %d trials (later old %d, later similar %d)\n', subj, height(T), nOld, nSim);
+fprintf('[%s] done: %d trials; SME items (presentation 1): later old %d, later similar %d\n', subj, height(T), nOld, nSim);
 end

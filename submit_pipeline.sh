@@ -27,7 +27,7 @@
 
 cd "$(dirname "$0")" || exit 1
 REPO=$(pwd)
-SUBJLIST="$REPO/subj_list_all93.txt"
+SUBJLIST="$REPO/subj_list_all96.txt"
 NSUBJ=$(grep -c . "$SUBJLIST")   # non-empty lines
 START=${1:-all}
 mkdir -p "$HOME/logs"

@@ -18,10 +18,10 @@ function g3_extract()
 %               none), nCsimPairs, Power1st, Power2nd, lagIsim
 %   pairs.csv   one row per Isim or Csim pair (pair model): ID, YA, Type,
 %               Sim, PowerPair (mean of the two trials), PowerA, PowerB,
-%               category, catSize, itemRep, lag
+%               category, catSize, itemRep, lag, pos (pair midpoint in the session)
 %   person_split.csv   ID, YA, Ispec_half1, Ispec_half2, Ispec_pairs (check)
-%   lags.csv    one row per Isim/Csim pair: lag, position, reference position
-%               distance, mean reference similarity, lag widening
+%   lags.csv    one row per Isim/Csim pair: lag, position (pair midpoint),
+%               n reference pairs, mean reference similarity, lag widening
 
 C = bebo_config();
 if ~exist(C.dir.tables, 'dir'), mkdir(C.dir.tables); end
@@ -74,12 +74,13 @@ for s = 1:n
     pairs{s} = table(repmat(id, nI+nC, 1), repmat(isYA, nI+nC, 1), [repmat("Isim", nI, 1); repmat("Csim", nC, 1)], ...
         [sI; sC], [(pw(PI.tA) + pw(PI.tB))/2; (pw(PC.tA) + pw(PC.tB))/2], [pw(PI.tA); pw(PC.tA)], [pw(PI.tB); pw(PC.tB)], ...
         [PI.category; PC.category], [PI.catSize; PC.catSize], [PI.itemRep; T.itemRep(PC.tA)], [PI.lag; PC.lag], ...
-        'VariableNames', {'ID','YA','Type','Sim','PowerPair','PowerA','PowerB','category','catSize','itemRep','lag'});
+        [PI.pos; PC.pos], ...
+        'VariableNames', {'ID','YA','Type','Sim','PowerPair','PowerA','PowerB','category','catSize','itemRep','lag','pos'});
 
     % lags and references (for the lag figure)
     lags{s} = table(repmat(id, nI+nC, 1), repmat(isYA, nI+nC, 1), [repmat("Isim", nI, 1); repmat("Csim", nC, 1)], ...
-        [PI.lag; PC.lag], [PI.posA; PC.posA], [PI.refPosDist; PC.refPosDist], [PI.refSim; PC.refSim], [PI.widen; PC.widen], ...
-        'VariableNames', {'ID','YA','Type','lag','posA','refPosDist','refSim','widen'});
+        [PI.lag; PC.lag], [PI.pos; PC.pos], [PI.nRef; PC.nRef], [PI.refSim; PC.refSim], [PI.widen; PC.widen], ...
+        'VariableNames', {'ID','YA','Type','lag','pos','nRef','refSim','widen'});
 
     % split half (categories)
     rng(C.seed.splitHalf + id, 'twister');

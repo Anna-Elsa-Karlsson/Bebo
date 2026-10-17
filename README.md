@@ -31,6 +31,7 @@ On the grid, from inside `~/BEBO2/bebo-pipeline`:
 | `bash submit_pipeline.sh g3` | G3, G4, P1 only |
 | `bash submit_pipeline.sh figs` | P1 (figures) only |
 | `bash submit_pipeline.sh behavior` | B1 (behaviour) only |
+| `bash submit_pipeline.sh count` | C1: trial counts of all 96 (93 + 3 excluded) from PreprocData |
 
 Each job starts only when the jobs it needs have finished **without error**.
 Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
@@ -47,6 +48,7 @@ Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
 | G3 | `g3_extract.m` | single-trial tables (Ispec cluster only); split half | `tables/items.csv`, `pairs.csv`, `person_split.csv` |
 | G4 | `g4_person_stats.m` | age differences, drift check, correlation families, split half | `stats/person_stats.txt`, `tables/person_all.csv` |
 | P1 | `p1_figures.m` | group-level figures incl. Fig3 similarity matrices (no computation) | `figures/` |
+| C1 | `c1_count_trials.m` | trial counts per person (no EEG computation); sample check | `trial_log/trial_counts_all96.csv`, `trial_counts_summary.txt` |
 | B1 | `b1_behavior.m` | behaviour figure + stats (old behavior_analysis.m, unchanged) | `figures/Fig_Behavior.*`, `stats/Behavior_stats.txt` |
 | R | `R/models_results.R` | condition models, pair model, memory model | `stats/models_stats.txt`, `stats/models.rds` |
 | R | `R/models_plots.R` | figures of the models (no computation) | `figures/` |

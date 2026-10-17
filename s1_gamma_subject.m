@@ -8,15 +8,16 @@ function s1_gamma_subject(subj)
 %   3. TFR: DPSS mtmconvol, 35:2:100 Hz, +/-5 Hz, 0.4 s, 20 ms, 0-1.7 s
 %   4. aperiodic background removed (BOSC fit on 35-100 Hz), log10
 %   5. similarity of every Isim and Csim pair: Pearson r between the two
-%      trials' spectra at every channel x time1 x time2, Fisher z
-%      (earlier trial = time1)
+%      trials' spectra at every channel x time1 x time2, Fisher z (earlier
+%      trial = time1); same values as spectral_rsa.m, computed faster
 %   6. reference for every Isim and Csim pair: mean similarity of the 20
 %      reference pairs (two analysed trials of DIFFERENT categories) with
 %      the same lag whose midpoint is closest in the session (lags +/-1,
 %      +/-2 added if fewer than 20 exist) -- matched on lag AND position
 %   7. corrected similarity = pair similarity - its reference
-%   8. per-person independent-samples t-map, corrected Isim vs Csim pairs
-%      (only used to FIND the cluster at the group level)
+%   8. per-person t-map, corrected Isim vs Csim pairs: FieldTrip
+%      ft_freqstatistics, analytic indepsamplesT (as the old pipeline;
+%      only used to FIND the cluster at the group level)
 %
 % Output (C.dir.gammaSubj/<ID>_gamma.mat):
 %   simI, simC     corrected similarity per pair  [pair x chan x t1 x t2], single
@@ -82,7 +83,9 @@ if any(~isfinite(P(:)))
     error('s1_gamma_subject:nan', '[%s] non-finite power after BOSC/log10', subj);
 end
 
-% z-score every spectrum over frequency once: then r = Z1'*Z2/(nf-1)
+% z-score every spectrum over frequency once: then Pearson r = Z1'*Z2/(nf-1)
+% (identical to spectral_rsa.m -- corr + atanh -- to rounding, checked on
+% simulated data 2026-10-17; faster)
 nf = size(P, 3);
 Z = (P - mean(P, 3)) ./ std(P, 0, 3);
 clear P
@@ -147,13 +150,29 @@ rawMeanI = squeeze(mean(rawI, 1)); rawMeanC = squeeze(mean(rawC, 1));
 refMeanI = squeeze(mean(refI, 1));  refMeanC = squeeze(mean(refC, 1));
 clear rawI rawC refI refC Z
 
-%% 8. Per-person t-map (pooled-variance independent-samples t, = FieldTrip indepsamplesT)
+%% 8. Per-person t-map: FieldTrip ft_freqstatistics, analytic indepsamplesT,
+%  corrected Isim pairs (condition 1) vs corrected Csim pairs (condition 2),
+%  set up as in the old pipeline (rsa_group_level_perAge.m,
+%  independent_samples_ttest). The 'freq' axis carries time1 (FieldTrip
+%  dimord convention, as before).
 nI = size(simI,1); nC = size(simC,1);
 if nI < 2 || nC < 2, error('s1_gamma_subject:pairs', '[%s] too few pairs (Isim %d, Csim %d)', subj, nI, nC); end
+mk = @(X) struct('dimord', 'rpt_chan_freq_time', 'label', {label(:)}, 'freq', time(:)', ...
+    'time', time(:)', 'powspctrm', double(X));
+cfg = [];
+cfg.channel = 'all'; cfg.latency = 'all'; cfg.frequency = 'all';
+cfg.avgoverchan = 'no'; cfg.avgovertime = 'no'; cfg.avgoverfreq = 'no';
+cfg.parameter = 'powspctrm';
+cfg.method    = 'analytic';
+cfg.statistic = 'indepsamplesT';
+cfg.tail      = 0;
+cfg.design    = [ones(1, nI) 2*ones(1, nC)];
+cfg.ivar      = 1;
+ft_warning off 'FieldTrip:getdimord:warning_dimord_could_not_be_determined'
+st = ft_freqstatistics(cfg, mk(simI), mk(simC));
+tmap = st.stat;
+clear st
 meanI = squeeze(mean(double(simI), 1)); meanC = squeeze(mean(double(simC), 1));
-vI = squeeze(var(double(simI), 0, 1)); vC = squeeze(var(double(simC), 0, 1));
-sp = sqrt(((nI-1)*vI + (nC-1)*vC) / (nI+nC-2));
-tmap = (meanI - meanC) ./ (sp * sqrt(1/nI + 1/nC));
 
 %% Pair tables
 PI = table(pI(:,1), pI(:,2), T.item(pI(:,1)), T.category(pI(:,1)), T.exemplar(pI(:,1)), ...
@@ -185,7 +204,8 @@ end
 
 function S = sim_pair(Z, a, b)
 % similarity of data rows a and b: chan x t1 x t2, Fisher z. Z holds the
-% spectra z-scored over frequency, so r = Za' * Zb / (nf - 1).
+% spectra z-scored over frequency, so r = Za' * Zb / (nf - 1) -- the same
+% Pearson r as spectral_rsa.m (corr + atanh), computed faster.
 [~, nCh, nf, nT] = size(Z);
 S = zeros(nCh, nT, nT, 'single');
 for ch = 1:nCh

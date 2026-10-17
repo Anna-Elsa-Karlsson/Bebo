@@ -21,6 +21,8 @@
 #   bash submit_pipeline.sh g3       only G3, G4, P1
 #   bash submit_pipeline.sh figs     only P1 (figures)
 #   bash submit_pipeline.sh behavior only B1 (behaviour)
+#   bash submit_pipeline.sh count    only C1: trial counts of all 96 from PreprocData
+#                                    (93 + the 3 excluded IDs; no EEG computation)
 # Output: ../Results_v2/   Logs: ~/logs/
 
 cd "$(dirname "$0")" || exit 1
@@ -30,7 +32,7 @@ NSUBJ=$(grep -c . "$SUBJLIST")   # non-empty lines
 START=${1:-all}
 mkdir -p "$HOME/logs"
 
-case "$START" in all|one|group|g3|figs|behavior) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs or behavior)"; exit 1 ;; esac
+case "$START" in all|one|group|g3|figs|behavior|count) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior or count)"; exit 1 ;; esac
 if [ ! -d "$REPO/../PreprocData" ]; then echo "PreprocData not found next to this folder"; exit 1; fi
 
 # MATLAB call that exits with an error code when the function fails
@@ -61,6 +63,11 @@ submit() {
 }
 
 S1=""; S2=""; G1=""
+if [ "$START" = count ]; then
+  C1=$(submit C1_count 3:0:0 20gb "" "$(mcall 'c1_count_trials')") || exit 1
+  echo "C1 trial counts: $C1  -> result: ../Results_v2/trial_log/trial_counts_summary.txt"
+  exit 0
+fi
 if [ "$START" = behavior ]; then
   B1=$(submit B1_behavior 0:30:0 8gb "" "$(mcall 'b1_behavior')") || exit 1
   echo "B1 behaviour: $B1"

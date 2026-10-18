@@ -31,6 +31,7 @@ On the grid, from inside `~/BEBO2/bebo-pipeline`:
 | `bash submit_pipeline.sh g3` | G3, G4, P1 only |
 | `bash submit_pipeline.sh figs` | P1 (figures) only |
 | `bash submit_pipeline.sh power` | S1 + S2 for everyone, then G2 (alpha SME) and G5 (gamma sync + gamma SME) |
+| `bash submit_pipeline.sh ispecband` | Ispec with the similarity over 40-70 Hz only: S1 + G1, output in `Results_v2/ispec_40-70Hz/` (main results untouched) |
 | `bash submit_pipeline.sh pfigs` | P2 only: figures of alpha SME, gamma sync, gamma SME (needs G2 and G5) |
 | `bash submit_pipeline.sh gamma` | S1 for everyone, then G5 (gamma sync + gamma SME) |
 | `bash submit_pipeline.sh gpower` | G5 only: gamma sync + gamma SME cluster tests (needs S1 output from the 2026-10-18 S1) |

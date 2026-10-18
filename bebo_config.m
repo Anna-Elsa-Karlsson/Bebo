@@ -21,6 +21,15 @@ C.perfFile = fullfile(C.base, 'Performance_All.txt');
 C.out      = fullfile(C.base, 'Results_v2');
 
 % Output subfolders
+% Ispec on a restricted band (2026-10-18, user): environment variable
+% BEBO_RSABAND = '40-70' -> spectral similarity over 40-70 Hz only (BOSC fit
+% still on the whole band); ALL output then goes to Results_v2/ispec_40-70Hz/
+% so the main results are not touched. Set by `submit_pipeline.sh ispecband`.
+C.gamma.rsaBand = [35 100];             % Hz, frequencies the similarity uses
+if ~isempty(getenv('BEBO_RSABAND'))
+    C.gamma.rsaBand = sscanf(strrep(getenv('BEBO_RSABAND'), '-', ' '), '%f')';
+    C.out = fullfile(C.out, sprintf('ispec_%g-%gHz', C.gamma.rsaBand));
+end
 C.dir.gammaSubj = fullfile(C.out, 'gamma_subject');   % per-person RSA (s1)
 C.dir.alphaSubj = fullfile(C.out, 'alpha_subject');   % per-person power (s2)
 C.dir.trialLog  = fullfile(C.out, 'trial_log');       % per-person trial/pair counts + lags

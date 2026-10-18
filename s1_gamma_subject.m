@@ -143,6 +143,11 @@ if any(~isfinite(PB(:)))
     error('s1_gamma_subject:nanBL', '[%s] non-finite baseline power after BOSC/log10', subj);
 end
 
+% frequencies the similarity uses (C.gamma.rsaBand; default the whole band)
+rsel = freq >= C.gamma.rsaBand(1) - 1e-6 & freq <= C.gamma.rsaBand(2) + 1e-6;
+P = P(:, :, rsel, :); PB = PB(:, :, rsel);
+fprintf('[%s] similarity over %d frequencies (%g-%g Hz)\n', subj, sum(rsel), min(freq(rsel)), max(freq(rsel)));
+
 % z-score every spectrum over frequency once: then Pearson r = Z1'*Z2/(nf-1)
 % (identical to spectral_rsa.m -- corr + atanh -- to rounding, checked on
 % simulated data 2026-10-17; faster)

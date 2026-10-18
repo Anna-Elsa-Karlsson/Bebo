@@ -24,6 +24,9 @@
 #   bash submit_pipeline.sh behavior only B1 (behaviour)
 #   bash submit_pipeline.sh power    S1 + S2 (all persons), then G2 (alpha SME)
 #                                    and G5 (gamma sync + gamma SME) only
+#   bash submit_pipeline.sh ispecall   Ispec on ALL trials (any response or
+#                                    untested): S1 + G1, output in
+#                                    ../Results_v2/ispec_allTrials/
 #   bash submit_pipeline.sh ispecband  Ispec on 40-70 Hz only: S1 (all persons)
 #                                    + G1, output in ../Results_v2/ispec_40-70Hz/
 #   bash submit_pipeline.sh pfigs    only P2: figures of the power analyses
@@ -43,7 +46,7 @@ NSUBJ=$(grep -c . "$SUBJLIST")   # non-empty lines
 START=${1:-all}
 mkdir -p "$HOME/logs"
 
-case "$START" in all|one|group|g3|figs|behavior|count|gpower|gamma|power|pfigs|ispecband) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior, count, gpower, gamma, power, pfigs or ispecband)"; exit 1 ;; esac
+case "$START" in all|one|group|g3|figs|behavior|count|gpower|gamma|power|pfigs|ispecband|ispecall) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior, count, gpower, gamma, power, pfigs, ispecband or ispecall)"; exit 1 ;; esac
 if [ ! -d "$REPO/../PreprocData" ]; then echo "PreprocData not found next to this folder"; exit 1; fi
 
 # MATLAB call that exits with an error code when the function fails
@@ -77,6 +80,14 @@ S1=""; S2=""; G1=""; G2=""; G5=""
 if [ "$START" = count ]; then
   C1=$(submit C1_count 3:0:0 20gb "" "$(mcall 'c1_count_trials')") || exit 1
   echo "C1 trial counts: $C1  -> result: ../Results_v2/trial_log/trial_counts_summary.txt"
+  exit 0
+fi
+if [ "$START" = ispecall ]; then
+  ALLT="export BEBO_ALLTRIALS=1"
+  S1=$(submit S1_allT 12:0:0 40gb "" "$ALLT; $(mcall 's1_gamma_subject($SUBJ)')" "1-$NSUBJ") || exit 1
+  echo "S1 (all trials) per person: $S1"
+  G1=$(submit G1_allT 22:0:0 60gb "$S1" "$ALLT; $(mcall 'g1_ispec_group')") || exit 1
+  echo "G1 Ispec all trials cluster test: $G1  -> ~/logs/G1_allT_$G1.out, ../Results_v2/ispec_allTrials/"
   exit 0
 fi
 if [ "$START" = ispecband ]; then

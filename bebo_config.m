@@ -30,6 +30,16 @@ if ~isempty(getenv('BEBO_RSABAND'))
     C.gamma.rsaBand = sscanf(strrep(getenv('BEBO_RSABAND'), '-', ' '), '%f')';
     C.out = fullfile(C.out, sprintf('ispec_%g-%gHz', C.gamma.rsaBand));
 end
+% Ispec on ALL trials (2026-10-18, user): environment variable
+% BEBO_ALLTRIALS = 1 -> bebo_trials takes every presentation-1/2 trial of
+% the four experimental conditions, whatever the later response ('old',
+% 'similar', 'new' or not tested); ALL output then goes to
+% Results_v2/ispec_allTrials/. Set by `submit_pipeline.sh ispecall`.
+C.allTrials = strcmp(getenv('BEBO_ALLTRIALS'), '1');
+C.expConds  = {'normal', 'high-exemplar', 'high-repetition', 'high-repetition+exemplar'};
+if C.allTrials
+    C.out = fullfile(C.out, 'ispec_allTrials');
+end
 C.dir.gammaSubj = fullfile(C.out, 'gamma_subject');   % per-person RSA (s1)
 C.dir.alphaSubj = fullfile(C.out, 'alpha_subject');   % per-person power (s2)
 C.dir.trialLog  = fullfile(C.out, 'trial_log');       % per-person trial/pair counts + lags

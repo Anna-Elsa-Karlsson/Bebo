@@ -2,11 +2,13 @@ function [T, pairsI, pairsC] = bebo_trials(trialinfo2, C)
 % BEBO_TRIALS  The trial rule of the analysis plan (section 0), in one place.
 %
 %   T      table, one row per ANALYSED trial (presentation 1 or 2 of an item
-%          with an 'old'/'similar' test response), sorted by trial number:
+%          with an 'old'/'similar' test response; with C.allTrials: every
+%          presentation-1/2 trial of the four experimental conditions,
+%          whatever the response or untested), sorted by trial number:
 %            row       row in the data (trialinfo2 / powspctrm)
 %            trialNr   position in the encoding sequence
 %            category, item, exemplar, pres, resp
-%            Acc       1 = 'old', 0 = 'similar'
+%            Acc       1 = 'old', 0 = 'similar' (NaN = 'new'/untested, C.allTrials only)
 %            catSize   number of exemplars in the category (2 or 4)
 %            itemRep   number of presentations of the item (2 or 4)
 %   pairsI [nI x 2] rows of T: presentation 1 and 2 of the same item
@@ -20,9 +22,15 @@ n  = size(ti, 1);
 
 resp = string(cellfun(@to_char, ti(:, c.resp), 'UniformOutput', false));
 pres = cell2mat(ti(:, c.pres));
-keep = ismember(resp, C.validResp) & ismember(pres, C.presentations);
-
 cond = string(cellfun(@to_char, ti(:, c.cond), 'UniformOutput', false));
+if isfield(C, 'allTrials') && C.allTrials
+    % no response filter; experimental conditions only (target-detection
+    % and filler trials were never tested and are not part of the design)
+    keep = ismember(cond, C.expConds) & ismember(pres, C.presentations);
+else
+    keep = ismember(resp, C.validResp) & ismember(pres, C.presentations);
+end
+
 T = table();
 T.row      = (1:n)';
 T.trialNr  = cell2mat(ti(:, c.trialNr));
@@ -32,6 +40,7 @@ T.exemplar = cell2mat(ti(:, c.exemplar));
 T.pres     = pres;
 T.resp     = resp;
 T.Acc      = double(resp == "old");
+T.Acc(~ismember(resp, C.validResp)) = NaN;   % 'new' / untested (only with C.allTrials)
 T.catSize  = 2 + 2 * double(contains(cond, "exemplar"));
 T.itemRep  = 2 + 2 * double(contains(cond, "repetition"));
 T = T(keep, :);

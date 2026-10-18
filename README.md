@@ -31,6 +31,7 @@ On the grid, from inside `~/BEBO2/bebo-pipeline`:
 | `bash submit_pipeline.sh g3` | G3, G4, P1 only |
 | `bash submit_pipeline.sh figs` | P1 (figures) only |
 | `bash submit_pipeline.sh power` | S1 + S2 for everyone, then G2 (alpha SME) and G5 (gamma sync + gamma SME) |
+| `bash submit_pipeline.sh pfigs` | P2 only: figures of alpha SME, gamma sync, gamma SME (needs G2 and G5) |
 | `bash submit_pipeline.sh gamma` | S1 for everyone, then G5 (gamma sync + gamma SME) |
 | `bash submit_pipeline.sh gpower` | G5 only: gamma sync + gamma SME cluster tests (needs S1 output from the 2026-10-18 S1) |
 | `bash submit_pipeline.sh behavior` | B1 (behaviour) only |
@@ -52,6 +53,7 @@ Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
 | G3 | `g3_extract.m` | single-trial tables (Ispec cluster only); split half | `tables/items.csv`, `pairs.csv`, `person_split.csv` |
 | G4 | `g4_person_stats.m` | age differences (incl. gamma sync and gamma SME), drift check, correlation families, split half | `stats/person_stats.txt`, `tables/person_all.csv` |
 | P1 | `p1_figures.m` | group-level figures incl. Fig3 similarity matrices (no computation) | `figures/` |
+| P2 | `p2_power_figures.m` | figures of the power analyses only (alpha SME, gamma sync, gamma SME; no computation) | `figures/Fig_SME`, `Fig_GammaSync`, `Fig_GammaSME` |
 | C1 | `c1_count_trials.m` | trial counts per person (no EEG computation); sample check | `trial_log/trial_counts_all96.csv`, `trial_counts_summary.txt` |
 | B1 | `b1_behavior.m` | behaviour figure + stats (old behavior_analysis.m, unchanged) | `figures/Fig_Behavior.*`, `stats/Behavior_stats.txt` |
 | R | `R/models_results.R` | condition models, pair model, memory model | `stats/models_stats.txt`, `stats/models.rds` |

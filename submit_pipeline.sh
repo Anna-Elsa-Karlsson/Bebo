@@ -24,6 +24,8 @@
 #   bash submit_pipeline.sh behavior only B1 (behaviour)
 #   bash submit_pipeline.sh power    S1 + S2 (all persons), then G2 (alpha SME)
 #                                    and G5 (gamma sync + gamma SME) only
+#   bash submit_pipeline.sh pfigs    only P2: figures of the power analyses
+#                                    (alpha SME, gamma sync, gamma SME; needs G2, G5)
 #   bash submit_pipeline.sh gamma    S1 (all persons) and then G5 only
 #   bash submit_pipeline.sh gpower   only G5: gamma sync + gamma SME cluster tests
 #                                    (needs S1 output made with the 2026-10-18
@@ -39,7 +41,7 @@ NSUBJ=$(grep -c . "$SUBJLIST")   # non-empty lines
 START=${1:-all}
 mkdir -p "$HOME/logs"
 
-case "$START" in all|one|group|g3|figs|behavior|count|gpower|gamma|power) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior, count, gpower, gamma or power)"; exit 1 ;; esac
+case "$START" in all|one|group|g3|figs|behavior|count|gpower|gamma|power|pfigs) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior, count, gpower, gamma, power or pfigs)"; exit 1 ;; esac
 if [ ! -d "$REPO/../PreprocData" ]; then echo "PreprocData not found next to this folder"; exit 1; fi
 
 # MATLAB call that exits with an error code when the function fails
@@ -73,6 +75,11 @@ S1=""; S2=""; G1=""; G2=""; G5=""
 if [ "$START" = count ]; then
   C1=$(submit C1_count 3:0:0 20gb "" "$(mcall 'c1_count_trials')") || exit 1
   echo "C1 trial counts: $C1  -> result: ../Results_v2/trial_log/trial_counts_summary.txt"
+  exit 0
+fi
+if [ "$START" = pfigs ]; then
+  P2=$(submit P2_powfigs 1:0:0 16gb "" "$(mcall 'p2_power_figures')") || exit 1
+  echo "P2 power figures: $P2  -> ../Results_v2/figures/"
   exit 0
 fi
 if [ "$START" = power ]; then

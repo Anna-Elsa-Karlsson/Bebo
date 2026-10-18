@@ -38,7 +38,7 @@ imagesc(ax, GI.time, GI.time, tm'); axis(ax, 'xy', 'square'); hold(ax, 'on');
 contour(ax, GI.time, GI.time, double(squeeze(any(GI.mask(chI,:,:), 1)))', [0.5 0.5], 'k', 'LineWidth', 1.2);
 colormap(ax, bwr(256)); c = max(abs(tm(:))); caxis(ax, [-c c]); colorbar(ax);
 xlabel(ax, 'Presentation 1 / exemplar A time (s)'); ylabel(ax, 'Presentation 2 / exemplar B time (s)');
-title(ax, sprintf('Ispec t (mean over %d cluster channels)', sum(chI)));
+title(ax, sprintf('Ispec group t, Isim vs Csim (mean over %d cluster channels)', sum(chI)));
 ax = subplot(2,3,2);
 topo(ax, GI.label, sum(reshape(GI.mask, size(GI.mask,1), []), 2), C, haveFT, 'cluster points per channel');
 ax = subplot(2,3,3);

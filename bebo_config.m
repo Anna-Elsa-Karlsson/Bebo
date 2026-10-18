@@ -74,16 +74,16 @@ C.gamma.blToi = -1.0:0.02:-0.7;     % s
 
 %% 1f. Gamma synchronisation (power vs pre-stimulus baseline; added 2026-10-18)
 % Same TFR as the RSA (S1), log10 power WITHOUT BOSC, all analysed trials
-% (both responses). 1st level per person: depsamplesT over trials,
-% post-stimulus vs the trial's mean power in the baseline window above;
-% group: the t-maps vs 0. Cluster settings = the standard ones (C.clus).
+% (both responses), minus the trial's mean power in the baseline window
+% above, averaged per person; group: the means vs 0. Cluster settings = the
+% standard ones (C.clus).
 C.gsync.freq         = [35 100];        % Hz (whole analysis band)
 C.gsync.latency      = [0 1.7];         % s (whole gamma window)
 
 %% 1g. Gamma SME (added 2026-10-18): as the alpha SME (1b) in the gamma band:
 % log10 power of the RSA's TFR (no BOSC, no baseline), presentation 1;
-% 1st level per person: indepsamplesT later 'old' vs later 'similar'
-% trials; group: the t-maps vs 0; cluster settings as 1b (C.clus).
+% per-person means, later 'old' vs later 'similar'; group: paired test;
+% cluster settings as 1b (C.clus).
 % Expected direction: positive (more gamma for later 'old').
 C.gsme.freq    = [35 100];              % Hz
 C.gsme.latency = [0 1.7];               % s

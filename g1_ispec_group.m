@@ -1,8 +1,12 @@
 function g1_ispec_group()
 % G1_ISPEC_GROUP  Ispec cluster test and per-person Ispec (analysis plan 1a, 1c).
 %
-%   1. per-person t-maps (s1) tested against 0 across the full sample
-%      (depsamplesT, cluster permutation, settings in bebo_config)
+%   1. per person the mean corrected Isim map and the mean corrected Csim
+%      map (s1); group: paired test Isim vs Csim across the full sample
+%      (depsamplesT, cluster permutation, settings in bebo_config). Decided
+%      2026-10-18: averages, not the per-person t-maps, so that every
+%      person counts equally whatever their number of pairs (s1 still saves
+%      the t-map; it is not used).
 %   2. Ispec cluster = all significant POSITIVE clusters
 %   3. per person, mean over all cluster points of the corrected Isim and
 %      Csim; Ispec = Isim - Csim (MEAN DIFFERENCES, not t). Also the drift
@@ -38,9 +42,9 @@ for s = 1:n
     for v = vars(1:7), M.(v{1})(s,:,:,:) = single(L.(v{1})); end
 end
 
-%% 2. Cluster test: t-maps vs 0
-fprintf('Ispec cluster test: %d persons, %d channels x %d x %d time points\n', n, sz(1), sz(2), sz(3));
-stat = bebo_cluster_test(M.tmap, zeros(size(M.tmap), 'single'), label, time, time, C, C.seed.clusterI);
+%% 2. Cluster test: mean Isim vs mean Csim (paired)
+fprintf('Ispec cluster test (per-person means, Isim vs Csim): %d persons, %d channels x %d x %d time points\n', n, sz(1), sz(2), sz(3));
+stat = bebo_cluster_test(M.meanI, M.meanC, label, time, time, C, C.seed.clusterI);
 
 mask = false(size(stat.stat));
 sigPos = [];

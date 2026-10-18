@@ -46,11 +46,11 @@ Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
 
 | Step | Script | Does | Output (in Results_v2/) |
 |---|---|---|---|
-| S1 | `s1_gamma_subject.m` | per person: DFT filter 50/100 Hz; DPSS TFR 35-100 Hz; aperiodic removal; Isim / Csim pair similarity; pre-stimulus baseline correction (original method, data −1.2 to −0.5 s); Ispec t-map; gamma power (log10, no BOSC): 1st-level t-maps post vs baseline (all trials) and later 'old' vs 'similar' (presentation 1) | `gamma_subject/<ID>_gamma.mat`, `trial_log/` |
-| S2 | `s2_alpha_subject.m` | per person: Morlet 2-30 Hz log power per trial; 1st-level t-map later 'old' vs 'similar' (presentation 1) | `alpha_subject/<ID>_alpha.mat`, `trial_log/` |
-| G1 | `g1_ispec_group.m` | Ispec cluster test (t-maps vs 0); per-person Isim, Csim, Ispec, drift check; group-average matrices | `group/ispec_cluster.mat`, `group/ispec_group_means.mat`, `tables/person_ispec.csv` |
-| G2 | `g2_sme_group.m` | SME cluster test (1st-level t-maps vs 0); per-person SME | `group/sme_cluster.mat`, `tables/person_sme.csv` |
-| G5 | `g5_gamma_power_group.m` | gamma sync and gamma SME cluster tests (1st-level t-maps vs 0); per-person gSync, gSME | `group/gsync_cluster.mat`, `group/gsme_cluster.mat`, `tables/person_gpower.csv` |
+| S1 | `s1_gamma_subject.m` | per person: DFT filter 50/100 Hz; DPSS TFR 35-100 Hz; aperiodic removal; Isim / Csim pair similarity; pre-stimulus baseline correction (original method, data −1.2 to −0.5 s); mean Isim / Csim maps; gamma power (log10, no BOSC): mean post − baseline (all trials), mean later 'old' / 'similar' (presentation 1). (Also saves t-maps, not used.) | `gamma_subject/<ID>_gamma.mat`, `trial_log/` |
+| S2 | `s2_alpha_subject.m` | per person: Morlet 2-30 Hz log power per trial; mean later 'old' / 'similar' (presentation 1). (Also saves a t-map, not used.) | `alpha_subject/<ID>_alpha.mat`, `trial_log/` |
+| G1 | `g1_ispec_group.m` | Ispec cluster test (per-person means, Isim vs Csim, paired); per-person Isim, Csim, Ispec, drift check; group-average matrices | `group/ispec_cluster.mat`, `group/ispec_group_means.mat`, `tables/person_ispec.csv` |
+| G2 | `g2_sme_group.m` | SME cluster test (per-person means, old vs similar, paired); per-person SME | `group/sme_cluster.mat`, `tables/person_sme.csv` |
+| G5 | `g5_gamma_power_group.m` | gamma sync (per-person means vs 0) and gamma SME (means old vs similar, paired) cluster tests; per-person gSync, gSME | `group/gsync_cluster.mat`, `group/gsme_cluster.mat`, `tables/person_gpower.csv` |
 | G3 | `g3_extract.m` | single-trial tables (Ispec cluster only); split half | `tables/items.csv`, `pairs.csv`, `person_split.csv` |
 | G4 | `g4_person_stats.m` | age differences (incl. gamma sync and gamma SME), drift check, correlation families, split half | `stats/person_stats.txt`, `tables/person_all.csv` |
 | P1 | `p1_figures.m` | group-level figures incl. Fig3 similarity matrices (no computation) | `figures/` |
@@ -62,7 +62,7 @@ Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
 
 Shared: `bebo_config.m` (all settings), `bebo_ids.m` (sample),
 `bebo_trials.m` (trial rule), `bebo_cluster_test.m` (cluster permutation
-test), `bebo_tmap.m` (1st-level t-map), `bebo_init_fieldtrip.m`, `spectral_rsa.m`, `subtract_mean_noise_spectrum.m`.
+test), `bebo_tmap.m` (per-person t-map; saved by S1/S2, not used in the tests), `bebo_init_fieldtrip.m`, `spectral_rsa.m`, `subtract_mean_noise_spectrum.m`.
 
 ## Testing
 

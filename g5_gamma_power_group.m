@@ -3,14 +3,16 @@ function g5_gamma_power_group()
 % added 2026-10-18). Two cluster tests on the gamma power of s1 (the RSA's
 % DPSS TFR, log10, no BOSC):
 %
-%   1f GAMMA SYNC: per person a 1st-level t-map (s1 tSync: depsamplesT over
-%      all analysed trials, post-stimulus vs the trial's own baseline);
-%      group: the t-maps vs 0.
+%   1f GAMMA SYNC: per person gPow = mean over all analysed trials of
+%      log10 power minus the trial's own baseline (s1); group: gPow vs 0
+%      (depsamplesT).
 %      Cluster = all significant POSITIVE clusters (power above baseline).
 %      gSync = mean gPow (log10 power - baseline) over the cluster.
-%   1g GAMMA SME (as the alpha SME, g2): per person a 1st-level t-map (s1
-%      tSME: indepsamplesT, later 'old' vs later 'similar' trials,
-%      presentation 1, log10 power, no baseline); group: the t-maps vs 0.
+%   1g GAMMA SME (as the alpha SME, g2): per person mean log10 power of
+%      later 'old' and later 'similar' trials (s1; presentation 1, no
+%      baseline); group: paired test old vs similar (depsamplesT).
+%   Decided 2026-10-18: averages for every cluster test (s1 still saves the
+%   t-maps tSync, tSME; not used).
 %      Cluster = all significant POSITIVE clusters (expected: more gamma
 %      for later 'old'). gSME = mean (old - similar) over the cluster.
 %   In both, significant clusters in the other direction are reported, not
@@ -30,34 +32,34 @@ ids = bebo_ids('all'); nYA = numel(bebo_ids('ya')); n = numel(ids);
 %% Load
 for s = 1:n
     L = load(fullfile(C.dir.gammaSubj, sprintf('%d_gamma.mat', ids(s))), ...
-        'gPow', 'tSync', 'nPow', 'gOld', 'gSim', 'tSME', 'gnOld', 'gnSim', 'label', 'freq', 'time');
+        'gPow', 'nPow', 'gOld', 'gSim', 'gnOld', 'gnSim', 'label', 'freq', 'time');
     if s == 1
         label = L.label; freq = L.freq; time = L.time;
-        A = zeros([n size(L.gPow)]); Old = A; Sim = A; TS = A; TE = A; nPow = zeros(n,1); nOld = nPow; nSim = nPow;
+        A = zeros([n size(L.gPow)]); Old = A; Sim = A; nPow = zeros(n,1); nOld = nPow; nSim = nPow;
     elseif ~isequal(L.label, label) || ~isequal(L.freq, freq) || ~isequal(L.time, time)
         error('g5_gamma_power_group:axes', 'Subject %d: axes differ from subject %d', ids(s), ids(1));
     end
-    A(s,:,:,:) = L.gPow; Old(s,:,:,:) = L.gOld; Sim(s,:,:,:) = L.gSim; TS(s,:,:,:) = L.tSync; TE(s,:,:,:) = L.tSME;
+    A(s,:,:,:) = L.gPow; Old(s,:,:,:) = L.gOld; Sim(s,:,:,:) = L.gSim;
     nPow(s) = L.nPow; nOld(s) = L.gnOld; nSim(s) = L.gnSim;
 end
 P = table(ids(:), (1:n)' <= nYA, nan(n,1), nan(n,1), nPow, nOld, nSim, ...
     'VariableNames', {'ID','YA','gSync','gSME','nTrials','nOld','nSim'});
 
-%% 1f. Gamma sync: 1st-level t-maps vs 0
+%% 1f. Gamma sync: per-person mean (post - baseline) vs 0
 sel = struct('frequency', C.gsync.freq, 'latency', C.gsync.latency);
-fprintf('\n=== GAMMA SYNC (t-maps post vs baseline, vs 0): %d persons, %d-%d Hz, %.2f-%.2f s, clusteralpha %.2f, minnbchan %d\n', ...
+fprintf('\n=== GAMMA SYNC (per-person means post - baseline, vs 0): %d persons, %d-%d Hz, %.2f-%.2f s, clusteralpha %.2f, minnbchan %d\n', ...
     n, sel.frequency, sel.latency, C.clus.clusteralpha, C.clus.minnbchan);
-stat = bebo_cluster_test(TS, zeros(size(TS)), label, freq, time, C, C.seed.clusterG, sel);
+stat = bebo_cluster_test(A, zeros(size(A)), label, freq, time, C, C.seed.clusterG, sel);
 [mask, sigPos, sigNeg, extent, P.gSync] = pos_cluster(stat, A, label, freq, time, C.clus.alpha, 'gamma sync');
 GA = squeeze(mean(A, 1)); GA_YA = squeeze(mean(A(1:nYA,:,:,:), 1)); GA_OA = squeeze(mean(A(nYA+1:end,:,:,:), 1));
 save(fullfile(C.dir.group, 'gsync_cluster.mat'), 'stat', 'mask', 'sigPos', 'sigNeg', 'extent', ...
     'GA', 'GA_YA', 'GA_OA', 'label', 'freq', 'time', '-v7.3');
 
-%% 1g. Gamma SME: 1st-level t-maps (later old vs later similar) vs 0
+%% 1g. Gamma SME: mean later old vs mean later similar (paired)
 sel = struct('frequency', C.gsme.freq, 'latency', C.gsme.latency);
-fprintf('\n=== GAMMA SME (t-maps old vs similar, vs 0): %d persons, %d-%d Hz, %.2f-%.2f s, clusteralpha %.2f, minnbchan %d\n', ...
+fprintf('\n=== GAMMA SME (per-person means, old vs similar): %d persons, %d-%d Hz, %.2f-%.2f s, clusteralpha %.2f, minnbchan %d\n', ...
     n, sel.frequency, sel.latency, C.clus.clusteralpha, C.clus.minnbchan);
-stat = bebo_cluster_test(TE, zeros(size(TE)), label, freq, time, C, C.seed.clusterGS, sel);
+stat = bebo_cluster_test(Old, Sim, label, freq, time, C, C.seed.clusterGS, sel);
 D = Old - Sim;
 [mask, sigPos, sigNeg, extent, P.gSME] = pos_cluster(stat, D, label, freq, time, C.clus.alpha, 'gamma SME');
 GA = squeeze(mean(D, 1)); GA_YA = squeeze(mean(D(1:nYA,:,:,:), 1)); GA_OA = squeeze(mean(D(nYA+1:end,:,:,:), 1));

@@ -7,7 +7,7 @@ function p2_power_figures()
 % If stats/person_stats.mat (g4) exists, the YA vs OA test is written in the
 % titles; otherwise the per-person values are shown without a test.
 %
-%   Fig_SME        alpha SME: group t-map of the 1st-level t-maps (mean
+%   Fig_SME        alpha SME: group t-map of the paired test (mean
 %                  over cluster channels) with cluster outline, topography,
 %                  SME per age group
 %   Fig_GammaSync  gamma sync: group t-map, YA and OA mean (log10 power -
@@ -55,7 +55,7 @@ imagesc(ax, G.stat.time, G.stat.freq, tm); axis(ax, 'xy'); hold(ax, 'on');
 if anyC, contour(ax, G.stat.time, G.stat.freq, outline, [0.5 0.5], 'k', 'LineWidth', 1.2); end
 colormap(ax, bwr(256)); c = max(abs(tm(:))); caxis(ax, [-c c]); colorbar(ax);
 xlabel(ax, 'Time (s)'); ylabel(ax, 'Frequency (Hz)');
-title(ax, sprintf('Group t (1st-level t-maps vs 0), %s', chTxt));
+title(ax, sprintf('Group t (paired, per-person means), %s', chTxt));
 
 % YA and OA means in the original units (gamma only)
 p = 2;

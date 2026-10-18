@@ -1,9 +1,10 @@
 function g2_sme_group()
 % G2_SME_GROUP  Alpha SME cluster test and per-person SME (analysis plan 1b, 1d).
 %
-%   1. per person: mean log10 power of trials later called 'old' vs later
-%      called 'similar' (s2), 2-30 Hz, -0.3 to 1.7 s, no baseline
-%   2. depsamplesT across the full sample, cluster permutation (bebo_config)
+%   1. per person: 1st-level t-map, later 'old' vs later 'similar' trials
+%      (s2: indepsamplesT, log10 power, no baseline; as the original SME)
+%   2. group: the t-maps vs 0 (depsamplesT), full sample, 2-30 Hz, -0.3 to
+%      1.7 s, cluster permutation (bebo_config)
 %   3. SME cluster = all significant NEGATIVE clusters (expected direction:
 %      more desynchronisation for later 'old'); a significant positive
 %      cluster is reported, not used
@@ -22,20 +23,20 @@ ids = bebo_ids('all'); nYA = numel(bebo_ids('ya')); n = numel(ids);
 
 %% 1. Load
 for s = 1:n
-    L = load(fullfile(C.dir.alphaSubj, sprintf('%d_alpha.mat', ids(s))), 'powOld', 'powSim', 'nOld', 'nSim', 'label', 'freq', 'time');
+    L = load(fullfile(C.dir.alphaSubj, sprintf('%d_alpha.mat', ids(s))), 'tmap', 'powOld', 'powSim', 'nOld', 'nSim', 'label', 'freq', 'time');
     if s == 1
         label = L.label; freq = L.freq; time = L.time;
-        A = zeros([n size(L.powOld)]); B = A; nOld = zeros(n,1); nSim = nOld;
+        A = zeros([n size(L.powOld)]); B = A; TM = A; nOld = zeros(n,1); nSim = nOld;
     elseif ~isequal(L.label, label) || ~isequal(L.freq, freq) || ~isequal(L.time, time)
         error('g2_sme_group:axes', 'Subject %d: axes differ from subject %d', ids(s), ids(1));
     end
-    A(s,:,:,:) = L.powOld; B(s,:,:,:) = L.powSim; nOld(s) = L.nOld; nSim(s) = L.nSim;
+    A(s,:,:,:) = L.powOld; B(s,:,:,:) = L.powSim; TM(s,:,:,:) = L.tmap; nOld(s) = L.nOld; nSim(s) = L.nSim;
 end
 
-%% 2. Cluster test: later old vs later similar
+%% 2. Cluster test: 1st-level t-maps (later old vs later similar) vs 0
 sel = struct('frequency', C.clus.smeFreq, 'latency', C.clus.smeLatency);
-fprintf('SME cluster test: %d persons, %d-%d Hz, %.2f-%.2f s\n', n, sel.frequency, sel.latency);
-stat = bebo_cluster_test(A, B, label, freq, time, C, C.seed.clusterS, sel);
+fprintf('SME cluster test (t-maps vs 0): %d persons, %d-%d Hz, %.2f-%.2f s\n', n, sel.frequency, sel.latency);
+stat = bebo_cluster_test(TM, zeros(size(TM)), label, freq, time, C, C.seed.clusterS, sel);
 
 %% 3. SME cluster = significant negative clusters
 mask = false(size(stat.stat));

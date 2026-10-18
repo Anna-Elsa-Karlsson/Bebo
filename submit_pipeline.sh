@@ -22,6 +22,8 @@
 #   bash submit_pipeline.sh g3       only G3, G4, P1
 #   bash submit_pipeline.sh figs     only P1 (figures)
 #   bash submit_pipeline.sh behavior only B1 (behaviour)
+#   bash submit_pipeline.sh power    S1 + S2 (all persons), then G2 (alpha SME)
+#                                    and G5 (gamma sync + gamma SME) only
 #   bash submit_pipeline.sh gamma    S1 (all persons) and then G5 only
 #   bash submit_pipeline.sh gpower   only G5: gamma sync + gamma SME cluster tests
 #                                    (needs S1 output made with the 2026-10-18
@@ -37,7 +39,7 @@ NSUBJ=$(grep -c . "$SUBJLIST")   # non-empty lines
 START=${1:-all}
 mkdir -p "$HOME/logs"
 
-case "$START" in all|one|group|g3|figs|behavior|count|gpower|gamma) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior, count, gpower or gamma)"; exit 1 ;; esac
+case "$START" in all|one|group|g3|figs|behavior|count|gpower|gamma|power) ;; *) echo "Unknown start point '$START' (all, one, group, g3, figs, behavior, count, gpower, gamma or power)"; exit 1 ;; esac
 if [ ! -d "$REPO/../PreprocData" ]; then echo "PreprocData not found next to this folder"; exit 1; fi
 
 # MATLAB call that exits with an error code when the function fails
@@ -71,6 +73,17 @@ S1=""; S2=""; G1=""; G2=""; G5=""
 if [ "$START" = count ]; then
   C1=$(submit C1_count 3:0:0 20gb "" "$(mcall 'c1_count_trials')") || exit 1
   echo "C1 trial counts: $C1  -> result: ../Results_v2/trial_log/trial_counts_summary.txt"
+  exit 0
+fi
+if [ "$START" = power ]; then
+  S1=$(submit S1_gamma 12:0:0 40gb "" "$(mcall 's1_gamma_subject($SUBJ)')" "1-$NSUBJ") || exit 1
+  echo "S1 gamma per person:        $S1"
+  S2=$(submit S2_alpha 4:0:0 20gb "" "$(mcall 's2_alpha_subject($SUBJ)')" "1-$NSUBJ") || exit 1
+  echo "S2 alpha per person:        $S2"
+  G2=$(submit G2_sme 12:0:0 30gb "$S2" "$(mcall 'g2_sme_group')") || exit 1
+  echo "G2 alpha SME test:          $G2  -> results in ~/logs/G2_sme_$G2.out"
+  G5=$(submit G5_gpower 8:0:0 40gb "$S1" "$(mcall 'g5_gamma_power_group')") || exit 1
+  echo "G5 gamma sync + SME tests:  $G5  -> results in ~/logs/G5_gpower_$G5.out"
   exit 0
 fi
 if [ "$START" = gamma ]; then

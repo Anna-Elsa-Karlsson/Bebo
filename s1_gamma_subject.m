@@ -9,10 +9,10 @@ function s1_gamma_subject(subj)
 %   3. TFR: DPSS mtmconvol, 35:2:100 Hz, +/-5 Hz, 0.4 s, 20 ms, 0-1.7 s;
 %      pre-stimulus baseline TFR with the same settings, window centres
 %      -1.0 to -0.7 s (data -1.2 to -0.5 s)
-%   3b. gamma synchronisation: log10 power (no BOSC) minus mean log10
-%      baseline power, averaged over all analysed trials (plan 1f)
-%   3c. gamma SME: log10 power (no BOSC, no baseline), presentation 1,
-%      later 'old' and later 'similar' averages (plan 1g)
+%   3b. gamma synchronisation: log10 power (no BOSC), all analysed trials;
+%      1st-level t-map post-stimulus vs own baseline (plan 1f)
+%   3c. gamma SME: log10 power (no BOSC, no baseline), presentation 1;
+%      1st-level t-map later 'old' vs later 'similar' (plan 1g)
 %   4. aperiodic background removed (BOSC fit on 35-100 Hz) separately for
 %      activation and baseline, log10; baseline averaged over time
 %   5. similarity of every Isim and Csim pair: Pearson r between the two
@@ -41,9 +41,13 @@ function s1_gamma_subject(subj)
 %                  trials of log10 power (no BOSC) minus the trial's mean
 %                  log10 baseline power [chan x freq x time]
 %   gPowBL         mean log10 baseline power [chan x freq]; nPow = trials
+%   tSync          1st-level t-map, post-stimulus vs own baseline over all
+%                  analysed trials (depsamplesT) [chan x freq x time]
 %   gOld, gSim     gamma SME (plan 1g): mean log10 power (no BOSC, no
 %                  baseline), presentation 1, later 'old' / later 'similar'
 %                  [chan x freq x time]; gnOld, gnSim = items in each
+%   tSME           1st-level t-map, later 'old' vs later 'similar' trials
+%                  (indepsamplesT, as the original SME) [chan x freq x time]
 %   label, freq, time   channel labels, frequency and time axes
 % Trial log (C.dir.trialLog/<ID>_gamma_log.csv): counts, lags.
 
@@ -92,24 +96,32 @@ tfr.powspctrm = tfr.powspctrm(:, :, fsel, :); tfr.freq = tfr.freq(fsel);
 tfrBL.powspctrm = tfrBL.powspctrm(:, :, fsel, :); tfrBL.freq = tfrBL.freq(fsel);
 freq = tfr.freq;
 
-%% 3b. Gamma synchronisation (plan 1f): log10 power (NO BOSC) minus the mean
-%  log10 power of the baseline window, per trial, averaged over all analysed
-%  trials (both responses, as the original alpha pre2post test)
+%% 3b. Gamma synchronisation (plan 1f): log10 power (NO BOSC), all analysed
+%  trials (both responses). 1st level: depsamplesT over trials, each trial's
+%  post-stimulus power vs its own mean baseline power (bebo_tmap 'dep').
+%  gPow (mean post - baseline) is kept for the per-person value.
 LP = log10(tfr.powspctrm);                                       % trial x chan x freq x time
-gPowBL = squeeze(mean(mean(log10(tfrBL.powspctrm), 4), 1));    % chan x freq
+LB = mean(log10(tfrBL.powspctrm), 4);                            % trial x chan x freq
+gPowBL = squeeze(mean(LB, 1));                                   % chan x freq
 gPow = squeeze(mean(LP, 1)) - gPowBL;                            % chan x freq x time
 nPow = size(LP, 1);
-if any(~isfinite(gPow(:)))
+if any(~isfinite(gPow(:))) || any(~isfinite(LB(:)))
     error('s1_gamma_subject:nanPow', '[%s] non-finite gamma power', subj);
 end
+tSync = bebo_tmap(LP, repmat(LB, [1 1 1 numel(time)]), label, freq, time, 'dep');
+clear LB
 
 %% 3c. Gamma SME (plan 1g): log10 power (no BOSC, NO baseline -- as the
-%  alpha SME), presentation-1 trials of items later called 'old' vs
+%  original SME), presentation-1 trials of items later called 'old' vs
 %  later called 'similar' (one trial per item)
 rOld = unique(T.dataRow(T.Acc == 1 & T.pres == 1));
 rSim = unique(T.dataRow(T.Acc == 0 & T.pres == 1));
 gOld = squeeze(mean(LP(rOld, :, :, :), 1)); gSim = squeeze(mean(LP(rSim, :, :, :), 1));
 gnOld = numel(rOld); gnSim = numel(rSim);
+if gnOld < 2 || gnSim < 2, error('s1_gamma_subject:sme', '[%s] too few SME trials (old %d, similar %d)', subj, gnOld, gnSim); end
+% 1st level: indepsamplesT, later 'old' vs later 'similar' trials (as the
+% original SME, TFR_GA_old.m)
+tSME = bebo_tmap(LP(rOld, :, :, :), LP(rSim, :, :, :), label, freq, time, 'indep');
 clear LP
 
 %% 4. Aperiodic background (BOSC fit on the analysis band), log10
@@ -204,7 +216,7 @@ PC = table(pC(:,1), pC(:,2), T.item(pC(:,1)), T.item(pC(:,2)), T.category(pC(:,1
 %% Save
 save(fullfile(C.dir.gammaSubj, [subj '_gamma.mat']), 'simI', 'simC', 'tmap', 'meanI', 'meanC', ...
     'rawMeanI', 'rawMeanC', 'refMeanI', 'refMeanC', 'PI', 'PC', 'T', 'label', 'time', ...
-    'gPow', 'gPowBL', 'nPow', 'gOld', 'gSim', 'gnOld', 'gnSim', 'freq', '-v7.3');
+    'gPow', 'gPowBL', 'nPow', 'tSync', 'gOld', 'gSim', 'gnOld', 'gnSim', 'tSME', 'freq', '-v7.3');
 
 %% Trial log
 tlog = table(string(subj), height(T), sum(T.pres==1), sum(T.Acc(T.pres==1)), sum(1-T.Acc(T.pres==1)), nI, nC, ...

@@ -7,8 +7,10 @@ function s2_alpha_subject(subj)
 %      channels
 %   2. TFR: Morlet wavelets, 7 cycles, 2:2:30 Hz, 40 ms steps,
 %      -0.28 to 1.68 s; log10 per trial; NO baseline correction
-%   3. condition averages for the SME: presentation-1 trials of items later
-%      called 'old' and of items later called 'similar' (one trial per item)
+%   3. SME: presentation-1 trials of items later called 'old' and of items
+%      later called 'similar' (one trial per item): 1st-level t-map
+%      (FieldTrip indepsamplesT, analytic, as the original SME,
+%      TFR_GA_old.m) and the condition averages (per-person value)
 %
 % Output (C.dir.alphaSubj/<ID>_alpha.mat):
 %   pow        single-trial log10 power [trial x chan x freq x time], single,
@@ -16,6 +18,7 @@ function s2_alpha_subject(subj)
 %   powOld, powSim   mean log10 power, later 'old' / later 'similar',
 %                    presentation 1 [chan x freq x time]
 %   nOld, nSim       number of items (presentation-1 trials) in each
+%   tmap       1st-level t-map later 'old' vs later 'similar' [chan x freq x time]
 %   T, label, freq, time
 % Trial log (C.dir.trialLog/<ID>_alpha_log.csv).
 
@@ -68,9 +71,10 @@ if nOld < 2 || nSim < 2
 end
 powOld = squeeze(mean(double(pow(isOld,:,:,:)), 1));
 powSim = squeeze(mean(double(pow(isSim,:,:,:)), 1));
+tmap = bebo_tmap(pow(isOld,:,:,:), pow(isSim,:,:,:), label, freq, time, 'indep');
 
 %% Save
-save(fullfile(C.dir.alphaSubj, [subj '_alpha.mat']), 'pow', 'powOld', 'powSim', 'nOld', 'nSim', ...
+save(fullfile(C.dir.alphaSubj, [subj '_alpha.mat']), 'pow', 'powOld', 'powSim', 'nOld', 'nSim', 'tmap', ...
     'T', 'label', 'freq', 'time', '-v7.3');
 tlog = table(string(subj), height(T), nOld, nSim, 'VariableNames', {'ID','nTrials','nItemsOld','nItemsSimilar'});
 writetable(tlog, fullfile(C.dir.trialLog, [subj '_alpha_log.csv']));

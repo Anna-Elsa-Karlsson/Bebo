@@ -4,7 +4,9 @@ function g4_person_stats()
 % C.dir.stats/person_stats.txt (+ person_stats.mat for the figure script)
 % and C.dir.tables/person_all.csv.
 %
-%   Age (YA vs OA, Student t, Cohen's d): Ispec, Isim, Csim, SME
+%   Age (YA vs OA, Student t, Cohen's d): Ispec, Isim, Csim, SME, gamma
+%     sync and gamma SME (gSync, gSME, g5; age test only -- not in the
+%     correlation families)
 %   Drift check: baseline(Isim) - baseline(Csim) in the Ispec cluster
 %     (what the baseline correction removed), next to the uncorrected and
 %     the corrected Isim - Csim
@@ -26,13 +28,14 @@ ids = bebo_ids('all'); n = numel(ids);
 I = readtable(fullfile(C.dir.tables, 'person_ispec.csv'));
 S = readtable(fullfile(C.dir.tables, 'person_sme.csv'));
 H = readtable(fullfile(C.dir.tables, 'person_split.csv'));
+G = readtable(fullfile(C.dir.tables, 'person_gpower.csv'));
 B = readtable(C.perfFile);
-if ~isequal(I.ID, ids(:)) || ~isequal(S.ID, ids(:)) || ~isequal(H.ID, ids(:))
+if ~isequal(I.ID, ids(:)) || ~isequal(S.ID, ids(:)) || ~isequal(H.ID, ids(:)) || ~isequal(G.ID, ids(:))
     error('g4_person_stats:ids', 'Person tables are not in bebo_ids order');
 end
 [ok, ib] = ismember(ids(:), B.ID);
 if ~all(ok), error('g4_person_stats:perf', 'Performance file is missing: %s', mat2str(ids(~ok))); end
-P = I; P.SME = S.SME; P.nOld = S.nOld; P.nSim = S.nSim;
+P = I; P.SME = S.SME; P.nOld = S.nOld; P.nSim = S.nSim; P.gSync = G.gSync; P.gSME = G.gSME;
 P.Ispec_half1 = H.Ispec_half1; P.Ispec_half2 = H.Ispec_half2;
 P.IM = B.IM(ib); P.LDI = B.LDI(ib);
 writetable(P, fullfile(C.dir.tables, 'person_all.csv'));
@@ -46,8 +49,10 @@ out('BEBO person-level statistics -- %s\nN = %d (%d YA, %d OA). Per-person value
 %% Age differences
 R = struct();
 out('=== AGE DIFFERENCES (YA vs OA; Student t, Cohen''s d) ===\n');
-for v = {'Ispec', 'Isim', 'Csim', 'SME'}
-    x = P.(v{1}); R.age.(v{1}) = age_test(out, v{1}, x(ya), x(~ya));
+for v = {'Ispec', 'Isim', 'Csim', 'SME', 'gSync', 'gSME'}
+    x = P.(v{1});
+    if all(isnan(x)), out('%-14s no significant cluster\n', v{1}); continue, end
+    R.age.(v{1}) = age_test(out, v{1}, x(ya), x(~ya));
 end
 
 %% Drift check

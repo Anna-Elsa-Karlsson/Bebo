@@ -63,6 +63,22 @@ C.gamma.boscBand  = [35 100];           % aperiodic fit on the analysis band
 % then averaged over time ("average first, then correlate").
 C.gamma.blToi = -1.0:0.02:-0.7;     % s
 
+%% 1f. Gamma synchronisation (power vs pre-stimulus baseline; added 2026-10-18)
+% Analogue of the original alpha pre2post desync test
+% (RSA_pipeline/alpha_pre2post_*.m): same TFR as the RSA (S1), log10 power
+% WITHOUT BOSC, minus the mean log10 power in the baseline window above,
+% averaged over all analysed trials (both responses); depsamplesT vs 0.
+% Cluster settings = the standard ones below (C.clus), as Ispec and SME.
+C.gsync.freq         = [35 100];        % Hz (whole analysis band)
+C.gsync.latency      = [0 1.7];         % s (whole gamma window)
+
+%% 1g. Gamma SME (added 2026-10-18): as the alpha SME (1b) in the gamma band:
+% log10 power of the RSA's TFR (no BOSC, no baseline), presentation 1,
+% later 'old' vs later 'similar'; cluster settings as 1b (C.clus).
+% Expected direction: positive (more gamma for later 'old').
+C.gsme.freq    = [35 100];              % Hz
+C.gsme.latency = [0 1.7];               % s
+
 %% 1b. Alpha SME + single-trial power
 C.alpha.foi    = 2:2:30;                % Hz
 C.alpha.width  = 7;                     % Morlet cycles
@@ -83,5 +99,7 @@ C.clus.smeLatency       = [-0.3 1.7];
 C.seed.clusterI  = 101;    % Ispec permutation test
 C.seed.clusterS  = 102;    % SME permutation test
 C.seed.splitHalf = 103;    % split-half category split
+C.seed.clusterG  = 104;    % gamma sync permutation test
+C.seed.clusterGS = 105;    % gamma SME permutation test
 
 end

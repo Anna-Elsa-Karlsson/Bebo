@@ -8,6 +8,10 @@ function p1_figures()
 %               split halves
 %   Fig_SME     t-map (mean over SME cluster channels) with outline,
 %               topography, SME per age group
+%   Fig_GammaSync  gamma power change from baseline (mean over cluster
+%               channels, YA and OA) with cluster outline, topography,
+%               gSync per age group
+%   Fig_GammaSME   the same for the gamma SME (log10 power, old - similar)
 %   Fig_corr    between-person correlations (numbers from g4)
 %   Fig_lags    lags of Isim / Csim pairs, baseline similarity by lag,
 %               removed drift per person, pair positions in the session
@@ -96,6 +100,13 @@ else
 end
 save_fig(f, fullfile(C.dir.figs, 'Fig_SME'));
 
+%% Fig_GammaSync, Fig_GammaSME
+gspec = {'gsync_cluster.mat', 'gSync', 'log10 power - baseline', 'Gamma sync (log10 power - baseline)', 'Fig_GammaSync'; ...
+         'gsme_cluster.mat',  'gSME',  'old - similar (log10 power)', 'Gamma SME (log10 power, old - similar)', 'Fig_GammaSME'};
+for g = 1:size(gspec, 1)
+    gamma_fig(load(fullfile(C.dir.group, gspec{g,1})), P.(gspec{g,2}), R.age, gspec{g,2}, gspec(g,3:5), ya, col, C, haveFT);
+end
+
 %% Fig_corr
 f = figure('Units', 'centimeters', 'Position', [2 2 40 9], 'Color', 'w');
 spec = {'Ispec', 'IM', R.Ispec_beh, 1; 'Ispec', 'LDI', R.Ispec_beh, 2; 'SME', 'IM', R.SME_beh, 1; ...
@@ -133,6 +144,41 @@ histogram(ax, lagT.pos(~strcmp(lagT.Type, 'Isim')), 30, 'FaceColor', [0.47 0.27 
 xlabel(ax, 'Pair position in the session (midpoint)'); ylabel(ax, 'Pairs (all persons)');
 save_fig(f, fullfile(C.dir.figs, 'Fig_lags'));
 fprintf('Figures saved to %s\n', C.dir.figs);
+end
+
+function gamma_fig(GG, v, age, vname, txt, ya, col, C, haveFT)
+% YA and OA maps (mean over cluster channels, or all channels without a
+% cluster) with the cluster outline, topography, per-person values by age
+f = figure('Units', 'centimeters', 'Position', [2 2 40 10], 'Color', 'w');
+anyG = any(GG.mask(:));
+if anyG, chG = any(reshape(GG.mask, size(GG.mask,1), []), 2); else, chG = true(numel(GG.stat.label), 1); end
+[~, iC] = ismember(GG.stat.label(chG), GG.label);
+iF = arrayfun(@(x) find(abs(GG.freq - x) < 1e-6, 1), GG.stat.freq);
+iT = arrayfun(@(x) find(abs(GG.time - x) < 1e-6, 1), GG.stat.time);
+mG = {squeeze(mean(GG.GA_YA(iC, iF, iT), 1)), squeeze(mean(GG.GA_OA(iC, iF, iT), 1))};
+c = max(cellfun(@(m) max(abs(m(:))), mG));
+grp = {'Younger', 'Older'};
+for k = 1:2
+    ax = subplot(1,4,k);
+    imagesc(ax, GG.stat.time, GG.stat.freq, mG{k}); axis(ax, 'xy'); hold(ax, 'on');
+    if anyG
+        contour(ax, GG.stat.time, GG.stat.freq, double(squeeze(any(GG.mask(chG,:,:), 1))), [0.5 0.5], 'k', 'LineWidth', 1.2);
+    end
+    colormap(ax, bwr(256)); caxis(ax, [-c c]); colorbar(ax);
+    xlabel(ax, 'Time (s)'); ylabel(ax, 'Frequency (Hz)');
+    title(ax, sprintf('%s: %s, %d channels', grp{k}, txt{1}, sum(chG)));
+end
+if anyG
+    ax = subplot(1,4,3);
+    topo(ax, GG.stat.label, sum(reshape(GG.mask, size(GG.mask,1), []), 2), C, haveFT, 'cluster points per channel');
+    ax = subplot(1,4,4);
+    group_dots(ax, {v(ya), v(~ya)}, [1 2], {col.YA, col.OA});
+    set(ax, 'XTick', [1 2], 'XTickLabel', grp); ylabel(ax, txt{2});
+    a = age.(vname); title(ax, sprintf('t(%d) = %.2f, p = %.3f, d = %.2f', a.df, a.t, a.p, a.d));
+else
+    annotation(f, 'textbox', [0.55 0.4 0.4 0.2], 'String', 'No significant positive cluster (all channels shown)', 'EdgeColor', 'none', 'FontSize', 12);
+end
+save_fig(f, fullfile(C.dir.figs, txt{3}));
 end
 
 function group_dots(ax, vals, xs, cols)

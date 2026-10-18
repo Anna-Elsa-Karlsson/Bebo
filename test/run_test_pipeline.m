@@ -12,6 +12,7 @@ for s = [YA(:); OA(:)]'
 end
 g1_ispec_group();
 g2_sme_group();
+g5_gamma_power_group();
 g3_extract();
 g4_person_stats();
 end

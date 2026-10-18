@@ -26,10 +26,12 @@ On the grid, from inside `~/BEBO2/bebo-pipeline`:
 | Command | What it submits |
 |---|---|
 | `bash submit_pipeline.sh one` | TEST: S1 and S2 for the first person only |
-| `bash submit_pipeline.sh` | everything (S1, S2, G1-G4, P1) |
-| `bash submit_pipeline.sh group` | G1-G4 only (S1 and S2 done) |
+| `bash submit_pipeline.sh` | everything (S1, S2, G1-G5, P1, B1) |
+| `bash submit_pipeline.sh group` | G1-G5, P1, B1 (S1 and S2 done) |
 | `bash submit_pipeline.sh g3` | G3, G4, P1 only |
 | `bash submit_pipeline.sh figs` | P1 (figures) only |
+| `bash submit_pipeline.sh gamma` | S1 for everyone, then G5 (gamma sync + gamma SME) |
+| `bash submit_pipeline.sh gpower` | G5 only: gamma sync + gamma SME cluster tests (needs S1 output from the 2026-10-18 S1) |
 | `bash submit_pipeline.sh behavior` | B1 (behaviour) only |
 | `bash submit_pipeline.sh count` | C1: trial counts of all 96 recorded from PreprocData (sample check) |
 
@@ -41,12 +43,13 @@ Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
 
 | Step | Script | Does | Output (in Results_v2/) |
 |---|---|---|---|
-| S1 | `s1_gamma_subject.m` | per person: DFT filter 50/100 Hz; DPSS TFR 35-100 Hz; aperiodic removal; Isim / Csim pair similarity; pre-stimulus baseline correction (original method, data −1.2 to −0.5 s); t-map | `gamma_subject/<ID>_gamma.mat`, `trial_log/` |
+| S1 | `s1_gamma_subject.m` | per person: DFT filter 50/100 Hz; DPSS TFR 35-100 Hz; aperiodic removal; Isim / Csim pair similarity; pre-stimulus baseline correction (original method, data −1.2 to −0.5 s); t-map; gamma power for G5 (log10, no BOSC: change from baseline, all trials; later 'old' / 'similar' averages, presentation 1) | `gamma_subject/<ID>_gamma.mat`, `trial_log/` |
 | S2 | `s2_alpha_subject.m` | per person: Morlet 2-30 Hz log power per trial; later 'old' / 'similar' averages | `alpha_subject/<ID>_alpha.mat`, `trial_log/` |
 | G1 | `g1_ispec_group.m` | Ispec cluster test (t-maps vs 0); per-person Isim, Csim, Ispec, drift check; group-average matrices | `group/ispec_cluster.mat`, `group/ispec_group_means.mat`, `tables/person_ispec.csv` |
 | G2 | `g2_sme_group.m` | SME cluster test (old vs similar); per-person SME | `group/sme_cluster.mat`, `tables/person_sme.csv` |
+| G5 | `g5_gamma_power_group.m` | gamma sync cluster test (power vs baseline, vs 0) and gamma SME cluster test (later old vs similar, as G2); per-person gSync, gSME | `group/gsync_cluster.mat`, `group/gsme_cluster.mat`, `tables/person_gpower.csv` |
 | G3 | `g3_extract.m` | single-trial tables (Ispec cluster only); split half | `tables/items.csv`, `pairs.csv`, `person_split.csv` |
-| G4 | `g4_person_stats.m` | age differences, drift check, correlation families, split half | `stats/person_stats.txt`, `tables/person_all.csv` |
+| G4 | `g4_person_stats.m` | age differences (incl. gamma sync and gamma SME), drift check, correlation families, split half | `stats/person_stats.txt`, `tables/person_all.csv` |
 | P1 | `p1_figures.m` | group-level figures incl. Fig3 similarity matrices (no computation) | `figures/` |
 | C1 | `c1_count_trials.m` | trial counts per person (no EEG computation); sample check | `trial_log/trial_counts_all96.csv`, `trial_counts_summary.txt` |
 | B1 | `b1_behavior.m` | behaviour figure + stats (old behavior_analysis.m, unchanged) | `figures/Fig_Behavior.*`, `stats/Behavior_stats.txt` |

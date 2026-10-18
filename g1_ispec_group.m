@@ -6,7 +6,7 @@ function g1_ispec_group()
 %   2. Ispec cluster = all significant POSITIVE clusters
 %   3. per person, mean over all cluster points of the corrected Isim and
 %      Csim; Ispec = Isim - Csim (MEAN DIFFERENCES, not t). Also the drift
-%      check: reference(Isim) - reference(Csim) in the cluster, and the
+%      check: baseline(Isim) - baseline(Csim) in the cluster, and the
 %      uncorrected values.
 %
 % Output:
@@ -17,7 +17,7 @@ function g1_ispec_group()
 %                                   per-person mean maps [chan x t1 x t2]
 %                                   (= the old grand averages; for Fig3)
 %   C.dir.tables/person_ispec.csv   ID, YA, Isim, Csim, Ispec, rawIsim, rawCsim,
-%                                   refIsim, refCsim, drift
+%                                   refIsim, refCsim (baseline), drift
 
 C = bebo_config();
 bebo_init_fieldtrip(C);

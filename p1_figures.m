@@ -9,8 +9,8 @@ function p1_figures()
 %   Fig_SME     t-map (mean over SME cluster channels) with outline,
 %               topography, SME per age group
 %   Fig_corr    between-person correlations (numbers from g4)
-%   Fig_lags    lags of Isim / Csim pairs, reference similarity by lag,
-%               drift effect per person, number of reference pairs
+%   Fig_lags    lags of Isim / Csim pairs, baseline similarity by lag,
+%               removed drift per person, pair positions in the session
 % R2017b-compatible (subplot, print). Output: C.dir.figs (png + pdf).
 
 C = bebo_config();
@@ -121,15 +121,16 @@ legend(ax, {'Isim pairs', 'Csim pairs'}); xlabel(ax, 'Lag (trial positions)'); y
 ax = subplot(2,2,2);
 [g, lagBin] = findgroups(min(floor(lagT.lag/5)*5, 200));
 mRef = splitapply(@mean, lagT.refSim, g);
-plot(ax, lagBin, mRef, 'k.-'); xlabel(ax, 'Lag (5-trial bins, >= 200 pooled)'); ylabel(ax, 'Reference similarity (Fisher z)');
-title(ax, 'Similarity of unrelated pairs by lag (= drift)');
+plot(ax, lagBin, mRef, 'k.-'); xlabel(ax, 'Lag (5-trial bins, >= 200 pooled)'); ylabel(ax, 'Baseline similarity (Fisher z)');
+title(ax, 'Baseline similarity by lag (= drift captured)');
 ax = subplot(2,2,3);
 group_dots(ax, {P.drift(ya), P.drift(~ya)}, [1 2], {col.YA, col.OA});
-set(ax, 'XTick', [1 2], 'XTickLabel', {'Younger', 'Older'}); ylabel(ax, 'reference(Isim) - reference(Csim)');
-title(ax, sprintf('Drift effect in the Ispec cluster (mean Ispec %.4f)', mean(P.Ispec)));
+set(ax, 'XTick', [1 2], 'XTickLabel', {'Younger', 'Older'}); ylabel(ax, 'baseline(Isim) - baseline(Csim)');
+title(ax, sprintf('Removed by the baseline in the Ispec cluster (mean Ispec %.4f)', mean(P.Ispec)));
 ax = subplot(2,2,4);
-histogram(ax, lagT.nRef, 30, 'FaceColor', [0.5 0.5 0.5]);
-xlabel(ax, 'Reference pairs per Isim/Csim pair'); ylabel(ax, 'Pairs');
+histogram(ax, lagT.pos(strcmp(lagT.Type, 'Isim')), 30, 'FaceColor', [0.85 0.33 0.1]); hold(ax, 'on');
+histogram(ax, lagT.pos(~strcmp(lagT.Type, 'Isim')), 30, 'FaceColor', [0.47 0.27 0.84]);
+xlabel(ax, 'Pair position in the session (midpoint)'); ylabel(ax, 'Pairs (all persons)');
 save_fig(f, fullfile(C.dir.figs, 'Fig_lags'));
 fprintf('Figures saved to %s\n', C.dir.figs);
 end

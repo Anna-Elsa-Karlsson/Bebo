@@ -5,8 +5,9 @@ function g4_person_stats()
 % and C.dir.tables/person_all.csv.
 %
 %   Age (YA vs OA, Student t, Cohen's d): Ispec, Isim, Csim, SME
-%   Drift check: reference(Isim) - reference(Csim) in the Ispec cluster;
-%     20% of its mean = the largest Ispec the remaining drift could produce
+%   Drift check: baseline(Isim) - baseline(Csim) in the Ispec cluster
+%     (what the baseline correction removed), next to the uncorrected and
+%     the corrected Isim - Csim
 %   Position check: per person, r between session position and corrected
 %     similarity (Isim, Csim separately), tested against 0 across persons
 %   Correlations: partial r controlling age (full sample), r within YA and
@@ -51,16 +52,14 @@ end
 
 %% Drift check
 out('\n=== DRIFT CHECK (Ispec cluster) ===\n');
-out('Drift effect = reference(Isim) - reference(Csim): M = %.4f (SD %.4f); uncorrected Isim - Csim: M = %.4f\n', ...
-    mean(P.drift), std(P.drift), mean(P.rawIsim - P.rawCsim));
-out('Largest Ispec the remaining drift could produce (20%% of the drift effect): %.4f | observed Ispec M = %.4f\n', ...
-    0.2 * mean(P.drift), mean(P.Ispec));
+out('Removed by the baseline = baseline(Isim) - baseline(Csim): M = %.4f (SD %.4f); uncorrected Isim - Csim: M = %.4f; corrected Ispec: M = %.4f\n', ...
+    mean(P.drift), std(P.drift), mean(P.rawIsim - P.rawCsim), mean(P.Ispec));
 
-%% Position check (lag correction): do the corrected similarities still
+%% Position check: do the corrected similarities still
 %  depend on where in the session a pair lies? Per person and pair type:
 %  Pearson r between pair position (midpoint) and corrected similarity;
 %  Fisher-z r tested against 0 across persons (one-sample t).
-out('\n=== POSITION CHECK (lag correction; corrected similarity vs session position) ===\n');
+out('\n=== POSITION CHECK (corrected similarity vs session position) ===\n');
 PR = readtable(fullfile(C.dir.tables, 'pairs.csv'));
 for ty = {'Isim', 'Csim'}
     zr = nan(n, 1);

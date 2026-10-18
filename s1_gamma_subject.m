@@ -1,21 +1,24 @@
 function s1_gamma_subject(subj)
-% S1_GAMMA_SUBJECT  Per-person gamma RSA with lag-matched reference
-% (analysis plan 1a). Computes everything from the preprocessed data.
+% S1_GAMMA_SUBJECT  Per-person gamma RSA with the original pre-stimulus
+% baseline correction (analysis plan 1a; decided 2026-10-18). Computes
+% everything from the preprocessed data.
 %
 %   1. load PreprocData/<ID>_Enc_allcond.mat, keep the analysed trials
 %      (bebo_trials.m) and the 60 EEG channels
 %   2. line noise: DFT filter at 50 and 100 Hz
-%   3. TFR: DPSS mtmconvol, 35:2:100 Hz, +/-5 Hz, 0.4 s, 20 ms, 0-1.7 s
-%   4. aperiodic background removed (BOSC fit on 35-100 Hz), log10
+%   3. TFR: DPSS mtmconvol, 35:2:100 Hz, +/-5 Hz, 0.4 s, 20 ms, 0-1.7 s;
+%      pre-stimulus baseline TFR with the same settings, window centres
+%      -1.0 to -0.7 s (data -1.2 to -0.5 s)
+%   4. aperiodic background removed (BOSC fit on 35-100 Hz) separately for
+%      activation and baseline, log10; baseline averaged over time
 %   5. similarity of every Isim and Csim pair: Pearson r between the two
 %      trials' spectra at every channel x time1 x time2, Fisher z (earlier
 %      trial = time1); same values as spectral_rsa.m, computed faster
-%   6. reference for every Isim and Csim pair: mean similarity of ALL
-%      reference pairs (two analysed trials of DIFFERENT categories, same
-%      presentation structure: Isim pres 1 -> pres 2, Csim pres 1 -> pres 1)
-%      with exactly the same lag (lags +/-1, +/-2 added if fewer than 20
-%      exist) -- matched on lag and presentation
-%   7. corrected similarity = pair similarity - its reference
+%   6. baseline for every Isim and Csim pair (the original method,
+%      rsa_subject_level.m correlate_pairs_and_package, "average first,
+%      then correlate"): corr(A activation at time1, B's time-averaged
+%      baseline spectrum), Fisher z, the same for every time2
+%   7. corrected similarity = pair similarity - its baseline
 %   8. per-person t-map, corrected Isim vs Csim pairs: FieldTrip
 %      ft_freqstatistics, analytic indepsamplesT (as the old pipeline;
 %      only used to FIND the cluster at the group level)
@@ -25,14 +28,13 @@ function s1_gamma_subject(subj)
 %   tmap           t-map Isim vs Csim             [chan x t1 x t2]
 %   meanI, meanC   mean corrected Isim / Csim     [chan x t1 x t2]
 %   rawMeanI, rawMeanC, refMeanI, refMeanC   uncorrected means and the mean
-%                  reference subtracted (corrected = raw - ref; the drift
+%                  baseline subtracted (corrected = raw - baseline; the drift
 %                  check uses refMeanI - refMeanC)
 %   PI, PC         pair tables (trials, item/category, condition, Acc, lag,
-%                  pair midpoint in the session, n reference pairs, lag
-%                  widening, mean reference similarity)
+%                  pair midpoint in the session, mean baseline similarity)
 %   T              analysed trials (bebo_trials.m)
 %   label, time    channel labels, time axis
-% Trial log (C.dir.trialLog/<ID>_gamma_log.csv): counts, lags, references.
+% Trial log (C.dir.trialLog/<ID>_gamma_log.csv): counts, lags.
 
 if isnumeric(subj), subj = num2str(subj); end
 C = bebo_config();
@@ -70,6 +72,8 @@ cfg.pad        = C.gamma.pad;
 fprintf('[%s] TFR (DPSS %d-%d Hz, +/-%d Hz, %.1f s, %d ms)\n', subj, cfg.foi(1), cfg.foi(end), C.gamma.tapsmofrq, C.gamma.t_ftimwin, round(1000*mean(diff(cfg.toi))));
 tfr = ft_freqanalysis(cfg, data);
 label = tfr.label; time = tfr.time;
+cfg.toi = C.gamma.blToi;                       % pre-stimulus baseline, same settings
+tfrBL = ft_freqanalysis(cfg, data);
 clear data
 
 %% 4. Aperiodic background (BOSC fit on the analysis band), log10
@@ -84,12 +88,23 @@ if any(~isfinite(P(:)))
     error('s1_gamma_subject:nan', '[%s] non-finite power after BOSC/log10', subj);
 end
 
+% baseline: BOSC fitted separately (as rsa_subject_level.m), log10, then
+% averaged over the baseline time points (trial x chan x freq)
+tfrBL.powspctrm = tfrBL.powspctrm(:, :, fsel, :); tfrBL.freq = tfrBL.freq(fsel);
+tfrBL = subtract_mean_noise_spectrum(cfgb, tfrBL);
+PB = mean(log10(tfrBL.powspctrm), 4);
+clear tfrBL
+if any(~isfinite(PB(:)))
+    error('s1_gamma_subject:nanBL', '[%s] non-finite baseline power after BOSC/log10', subj);
+end
+
 % z-score every spectrum over frequency once: then Pearson r = Z1'*Z2/(nf-1)
 % (identical to spectral_rsa.m -- corr + atanh -- to rounding, checked on
 % simulated data 2026-10-17; faster)
 nf = size(P, 3);
 Z = (P - mean(P, 3)) ./ std(P, 0, 3);
-clear P
+ZB = (PB - mean(PB, 3)) ./ std(PB, 0, 3);
+clear P PB
 nCh = numel(label); nT = numel(time);
 
 %% 5. Isim and Csim pairs (uncorrected)
@@ -100,62 +115,23 @@ for k = 1:size(pI,1), rawI(k,:,:,:) = sim_pair(Z, T.dataRow(pI(k,1)), T.dataRow(
 rawC = zeros([size(pC,1) nCh nT nT], 'single');
 for k = 1:size(pC,1), rawC(k,:,:,:) = sim_pair(Z, T.dataRow(pC(k,1)), T.dataRow(pC(k,2))); end
 
-%% 6. Reference matched on lag AND presentation (decided 2026-10-17)
-% Reference pairs: two analysed trials from DIFFERENT categories, earlier
-% trial first, with the SAME presentation structure as the pair type:
-%   Isim reference = (presentation 1 of item Y, presentation 2 of an
-%                     unrelated item Z)
-%   Csim reference = (presentation 1, presentation 1)
-% For every lag that occurs: reference = mean similarity of ALL such pairs
-% with exactly that lag (lags +/-1, then +/-2 added if fewer than
-% C.lag.minRef exist). No position matching, no random draw. Second
-% presentations differ from first ones (repetition effects), so the
-% presentation structure must match; whether the corrected values still
-% depend on session position is checked in g4_person_stats.m.
-nTr = height(T);
-[ia0, ib0] = find(triu(true(nTr), 1));
-okCat = T.category(ia0) ~= T.category(ib0);
-ia0 = ia0(okCat); ib0 = ib0(okCat);
-candI = T.pres(ia0) == 1 & T.pres(ib0) == 2;     % reference for Isim
-candC = T.pres(ia0) == 1 & T.pres(ib0) == 1;     % reference for Csim
-
-    function [ref, info] = lag_reference(lagsP, cand0)
-        % one reference map per lag (shared by all pairs with that lag)
-        ia = ia0(cand0); ib = ib0(cand0);
-        refLag = T.trialNr(ib) - T.trialNr(ia);
-        ul = unique(lagsP);
-        refL = zeros([numel(ul) nCh nT nT], 'single');
-        infoL = zeros(numel(ul), 3);   % nRef, widen, mean ref similarity
-        for k = 1:numel(ul)
-            for w = 0:C.lag.maxWiden
-                sel = find(abs(refLag - ul(k)) <= w);
-                if numel(sel) >= C.lag.minRef, break, end
-            end
-            if isempty(sel)
-                error('s1_gamma_subject:noRef', '[%s] no reference pair for lag %d', subj, ul(k));
-            end
-            acc = zeros(nCh, nT, nT);
-            for q = 1:numel(sel), acc = acc + double(sim_pair(Z, T.dataRow(ia(sel(q))), T.dataRow(ib(sel(q))))); end
-            refL(k,:,:,:) = single(acc / numel(sel));
-            infoL(k,:) = [numel(sel), w, mean(acc(:)) / numel(sel)];
-        end
-        [~, kk] = ismember(lagsP, ul);
-        ref = refL(kk,:,:,:);
-        info = infoL(kk,:);
-    end
-
-[refI, infoI] = lag_reference(lagI, candI);
-[refC, infoC] = lag_reference(lagC, candC);
-if any([infoI(:,1); infoC(:,1)] < C.lag.minRef)
-    warning('s1_gamma_subject:fewRef', '[%s] %d pair(s) with fewer than %d reference pairs', subj, sum([infoI(:,1); infoC(:,1)] < C.lag.minRef), C.lag.minRef);
-end
+%% 6. Baseline (original method): A's activation vs B's baseline spectrum
+%  [pair x chan x time1]; identical for every time2
+blI = zeros([size(pI,1) nCh nT], 'single');
+for k = 1:size(pI,1), blI(k,:,:) = sim_bl(Z, ZB, T.dataRow(pI(k,1)), T.dataRow(pI(k,2))); end
+blC = zeros([size(pC,1) nCh nT], 'single');
+for k = 1:size(pC,1), blC(k,:,:) = sim_bl(Z, ZB, T.dataRow(pC(k,1)), T.dataRow(pC(k,2))); end
+refI = repmat(blI, [1 1 1 nT]); refC = repmat(blC, [1 1 1 nT]);
+clear blI blC
+infoI = mean(reshape(refI, size(refI,1), []), 2);   % mean baseline similarity per pair
+infoC = mean(reshape(refC, size(refC,1), []), 2);
 
 %% 7. Corrected similarity
 simI = rawI - refI;
 simC = rawC - refC;
 rawMeanI = squeeze(mean(rawI, 1)); rawMeanC = squeeze(mean(rawC, 1));
 refMeanI = squeeze(mean(refI, 1));  refMeanC = squeeze(mean(refC, 1));
-clear rawI rawC refI refC Z
+clear rawI rawC refI refC Z ZB
 
 %% 8. Per-person t-map: FieldTrip ft_freqstatistics, analytic indepsamplesT,
 %  corrected Isim pairs (condition 1) vs corrected Csim pairs (condition 2),
@@ -184,14 +160,13 @@ meanI = squeeze(mean(double(simI), 1)); meanC = squeeze(mean(double(simC), 1));
 %% Pair tables
 PI = table(pI(:,1), pI(:,2), T.item(pI(:,1)), T.category(pI(:,1)), T.exemplar(pI(:,1)), ...
     T.catSize(pI(:,1)), T.itemRep(pI(:,1)), T.Acc(pI(:,1)), lagI, ...
-    (T.trialNr(pI(:,1)) + T.trialNr(pI(:,2))) / 2, infoI(:,1), infoI(:,2), infoI(:,3), ...
-    'VariableNames', {'tA','tB','item','category','exemplar','catSize','itemRep','Acc','lag','pos', ...
-    'nRef','widen','refSim'});
+    (T.trialNr(pI(:,1)) + T.trialNr(pI(:,2))) / 2, infoI, ...
+    'VariableNames', {'tA','tB','item','category','exemplar','catSize','itemRep','Acc','lag','pos','refSim'});
 PC = table(pC(:,1), pC(:,2), T.item(pC(:,1)), T.item(pC(:,2)), T.category(pC(:,1)), ...
     T.exemplar(pC(:,1)), T.exemplar(pC(:,2)), T.catSize(pC(:,1)), T.Acc(pC(:,1)), T.Acc(pC(:,2)), ...
-    lagC, (T.trialNr(pC(:,1)) + T.trialNr(pC(:,2))) / 2, infoC(:,1), infoC(:,2), infoC(:,3), ...
+    lagC, (T.trialNr(pC(:,1)) + T.trialNr(pC(:,2))) / 2, infoC, ...
     'VariableNames', {'tA','tB','itemA','itemB','category','exemplarA','exemplarB','catSize','AccA','AccB', ...
-    'lag','pos','nRef','widen','refSim'});
+    'lag','pos','refSim'});
 
 %% Save
 save(fullfile(C.dir.gammaSubj, [subj '_gamma.mat']), 'simI', 'simC', 'tmap', 'meanI', 'meanC', ...
@@ -200,13 +175,25 @@ save(fullfile(C.dir.gammaSubj, [subj '_gamma.mat']), 'simI', 'simC', 'tmap', 'me
 %% Trial log
 tlog = table(string(subj), height(T), sum(T.pres==1), sum(T.Acc(T.pres==1)), sum(1-T.Acc(T.pres==1)), nI, nC, ...
     median(lagI), min(lagI), max(lagI), median(lagC), min(lagC), max(lagC), ...
-    min([infoI(:,1); infoC(:,1)]), median([infoI(:,1); infoC(:,1)]), sum([infoI(:,2); infoC(:,2)] > 0), ...
     'VariableNames', {'ID','nTrials','nItems','nOld','nSimilar','nIsim','nCsim', ...
-    'lagI_median','lagI_min','lagI_max','lagC_median','lagC_min','lagC_max', ...
-    'minRefPerPair','medianRefPerPair','nPairsWidened'});
+    'lagI_median','lagI_min','lagI_max','lagC_median','lagC_min','lagC_max'});
 writetable(tlog, fullfile(C.dir.trialLog, [subj '_gamma_log.csv']));
-fprintf('[%s] done: Isim %d, Csim %d pairs; lags Isim %d-%d, Csim %d-%d; reference pairs per pair: min %d, median %d; widened %d\n', ...
-    subj, nI, nC, min(lagI), max(lagI), min(lagC), max(lagC), min([infoI(:,1); infoC(:,1)]), median([infoI(:,1); infoC(:,1)]), sum([infoI(:,2); infoC(:,2)] > 0));
+fprintf('[%s] done: Isim %d, Csim %d pairs; lags Isim %d-%d, Csim %d-%d; mean baseline similarity Isim %.4f, Csim %.4f\n', ...
+    subj, nI, nC, min(lagI), max(lagI), min(lagC), max(lagC), mean(infoI), mean(infoC));
+end
+
+function S = sim_bl(Z, ZB, a, b)
+% baseline similarity of pair (a, b): a's activation spectrum at every time
+% point vs b's time-averaged baseline spectrum -> chan x t1, Fisher z
+% (= spectral_rsa(tf1, repmat(mean(tf2bl,2), ...)) of the original, whose
+% columns are all equal)
+[~, nCh, nf, nT] = size(Z);
+S = zeros(nCh, nT, 'single');
+for ch = 1:nCh
+    r = reshape(Z(a, ch, :, :), nf, nT)' * reshape(ZB(b, ch, :), nf, 1) / (nf - 1);
+    r = min(max(r, -0.999999), 0.999999);
+    S(ch, :) = single(atanh(r));
+end
 end
 
 function S = sim_pair(Z, a, b)

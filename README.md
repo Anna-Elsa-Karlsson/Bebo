@@ -41,7 +41,7 @@ Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:
 
 | Step | Script | Does | Output (in Results_v2/) |
 |---|---|---|---|
-| S1 | `s1_gamma_subject.m` | per person: DFT filter 50/100 Hz; DPSS TFR 35-100 Hz; aperiodic removal; Isim / Csim pair similarity; reference matched on lag and session position; t-map | `gamma_subject/<ID>_gamma.mat`, `trial_log/` |
+| S1 | `s1_gamma_subject.m` | per person: DFT filter 50/100 Hz; DPSS TFR 35-100 Hz; aperiodic removal; Isim / Csim pair similarity; pre-stimulus baseline correction (original method, data −1.2 to −0.5 s); t-map | `gamma_subject/<ID>_gamma.mat`, `trial_log/` |
 | S2 | `s2_alpha_subject.m` | per person: Morlet 2-30 Hz log power per trial; later 'old' / 'similar' averages | `alpha_subject/<ID>_alpha.mat`, `trial_log/` |
 | G1 | `g1_ispec_group.m` | Ispec cluster test (t-maps vs 0); per-person Isim, Csim, Ispec, drift check; group-average matrices | `group/ispec_cluster.mat`, `group/ispec_group_means.mat`, `tables/person_ispec.csv` |
 | G2 | `g2_sme_group.m` | SME cluster test (old vs similar); per-person SME | `group/sme_cluster.mat`, `tables/person_sme.csv` |

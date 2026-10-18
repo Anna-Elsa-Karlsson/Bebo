@@ -56,10 +56,12 @@ C.gamma.t_ftimwin = 0.4;                % s
 C.gamma.toi       = 0:0.02:1.7;         % s, 20 ms steps
 C.gamma.pad       = 6;                  % s
 C.gamma.boscBand  = [35 100];           % aperiodic fit on the analysis band
-% Reference matched on lag and presentation: ALL unrelated pairs with the
-% same lag and presentation structure
-C.lag.minRef   = 20;     % if fewer than 20 exist at the exact lag ...
-C.lag.maxWiden = 2;      % ... add lags +/-1, then +/-2
+% Pre-stimulus baseline (original correction, decided 2026-10-18): window
+% CENTRES -1.0 to -0.7 s, so with 0.4 s windows the data used lie between
+% -1.2 and -0.5 s (ITI 1.5-2 s: >= 300 ms after the previous stimulus'
+% offset, >= 500 ms before onset). BOSC fitted separately on the baseline,
+% then averaged over time ("average first, then correlate").
+C.gamma.blToi = -1.0:0.02:-0.7;     % s
 
 %% 1b. Alpha SME + single-trial power
 C.alpha.foi    = 2:2:30;                % Hz

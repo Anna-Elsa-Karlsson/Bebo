@@ -3,7 +3,7 @@ function c1_count_trials()
 % (sample check, analysis plan section 0). No EEG computation: reads only
 % the trial information of PreprocData/<ID>_Enc_allcond.mat.
 %
-% Persons: all 96 of bebo_ids (incl. 3111, 3213, 4210, which were excluded
+% Persons: all 96 recorded (bebo_ids('full'); incl. 3111, 3213, 4210, which were excluded
 % in the original 93 and are included again since 2026-10-17; column
 % 'excluded' marks them), to check the manuscript's criterion "fewer than
 % 15 trials per condition of interest" (conditions = later 'old' vs later
@@ -25,7 +25,7 @@ function c1_count_trials()
 C = bebo_config();
 if ~exist(C.dir.trialLog, 'dir'), mkdir(C.dir.trialLog); end
 extra = [3111 3213 4210];
-ids = bebo_ids('all');
+ids = bebo_ids('full');
 n = numel(ids);
 R = table(ids(:), repmat("", n, 1), ismember(ids(:), extra), nan(n,1), nan(n,1), nan(n,1), nan(n,1), ...
     nan(n,1), nan(n,1), nan(n,1), nan(n,1), repmat("", n, 1), ...

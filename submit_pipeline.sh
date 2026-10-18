@@ -17,12 +17,12 @@
 #   bash submit_pipeline.sh one      TEST: S1 and S2 for the first person only
 #                                    (check trial_log/ before running everything)
 #   bash submit_pipeline.sh          everything
-#   bash submit_pipeline.sh group    only G1-G4 (S1 and S2 already done)
+#   bash submit_pipeline.sh group    only G1-G4, P1, B1 (S1 and S2 already done)
 #   bash submit_pipeline.sh g3       only G3, G4, P1
 #   bash submit_pipeline.sh figs     only P1 (figures)
 #   bash submit_pipeline.sh behavior only B1 (behaviour)
 #   bash submit_pipeline.sh count    only C1: trial counts of all 96 from PreprocData
-#                                    (93 + the 3 excluded IDs; no EEG computation)
+#                                    (no EEG computation)
 # Output: ../Results_v2/   Logs: ~/logs/
 
 cd "$(dirname "$0")" || exit 1

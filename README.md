@@ -31,7 +31,7 @@ On the grid, from inside `~/BEBO2/bebo-pipeline`:
 | `bash submit_pipeline.sh g3` | G3, G4, P1 only |
 | `bash submit_pipeline.sh figs` | P1 (figures) only |
 | `bash submit_pipeline.sh behavior` | B1 (behaviour) only |
-| `bash submit_pipeline.sh count` | C1: trial counts of all 96 (93 + 3 excluded) from PreprocData |
+| `bash submit_pipeline.sh count` | C1: trial counts of all 96 recorded from PreprocData (sample check) |
 
 Each job starts only when the jobs it needs have finished **without error**.
 Logs are in `~/logs/`. Then, locally, on the downloaded `Results_v2/tables`:

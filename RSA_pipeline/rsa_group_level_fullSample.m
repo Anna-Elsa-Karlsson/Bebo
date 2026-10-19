@@ -41,6 +41,8 @@ end
 switch contrastType
     case {'Ispec', 'IspecAll'} % IspecAll (2026-10-18): Ispec without the response filter, own folders
         nameA = 'within-item'; nameB = 'within-cat';
+    case 'IspecPaired' % 2026-10-19: item-specific Csim, row-aligned with Isim -> paired 1st level
+        nameA = 'within-item'; nameB = 'within-catItem';
     case 'Catspec'
         nameA = 'within-cat';  nameB = 'between-cat';
     otherwise

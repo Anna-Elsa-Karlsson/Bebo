@@ -34,6 +34,8 @@ if nargin < 6 || isempty(simField), simField = 'powspctrm'; end
 switch contrastType
     case {'Ispec', 'IspecAll'} % IspecAll (2026-10-18): Ispec without the response filter, own folders
         nameA = 'within-item'; nameB = 'within-cat';
+    case 'IspecPaired' % 2026-10-19: item-specific Csim, row-aligned with Isim -> paired 1st level
+        nameA = 'within-item'; nameB = 'within-catItem';
     case 'Catspec'
         nameA = 'within-cat';  nameB = 'between-cat';
     otherwise
@@ -108,7 +110,11 @@ end
 % not a validity fix, it's reverting to the already-published, already-
 % validated approach given the alternative didn't pay off empirically.
 
-stat = independent_samples_ttest(subjects, rsaDir, nameA, nameB, simField);
+if strcmp(contrastType, 'IspecPaired')
+    stat = dependent_samples_ttest(subjects, rsaDir, nameA, nameB, simField); % 2026-10-19: paired by item
+else
+    stat = independent_samples_ttest(subjects, rsaDir, nameA, nameB, simField);
+end
 statSuffix = '';
 if ~strcmp(simField, 'powspctrm'), statSuffix = '_uncorrected'; end
 save(fullfile(statDir, [group '_' nameA '_vs_' nameB '_1st_level_stat_vsBL' statSuffix '.mat']), 'stat', '-v7.3')
@@ -341,6 +347,37 @@ cfg = []; cfg.keepindividual = 'yes'; cfg.parameter = 'stat';
 stat_I = ft_freqgrandaverage(cfg, stats_cell{:});
 stat_I.df = dfs;
 
+end
+
+
+function stat_I = dependent_samples_ttest(subjects, rsaDir, nameA, nameB, simField)
+% IspecPaired (2026-10-19): per person, Isim(X) vs item-specific Csim(X),
+% PAIRED by item X (depsamplesT, analytic), at each (chan,time,time) cell.
+% The two files are row-aligned by rsa_subject_level.m (pairs_item_vs_itemcat):
+% checked here -- same number of rows and the same first trial per row.
+stats_cell = {}; dfs = [];
+for s = 1:length(subjects)
+    curr_subj = num2str(subjects(s));
+    L = load(fullfile(rsaDir, [curr_subj '_' nameA '_sim_ST.mat']), 'sim_mat'); dat1 = L.sim_mat;
+    L = load(fullfile(rsaDir, [curr_subj '_' nameB '_sim_ST.mat']), 'sim_mat'); dat2 = L.sim_mat;
+    n = size(dat1.(simField),1);
+    if size(dat2.(simField),1) ~= n || ~isequal(dat1.pairs(:,1), dat2.pairs(:,1))
+        error('dependent_samples_ttest:align', 'Subject %s: Isim and item-specific Csim rows are not aligned', curr_subj);
+    end
+    cfg = [];
+    cfg.channel = 'all'; cfg.latency = 'all'; cfg.frequency = 'all';
+    cfg.avgovertime = 'no'; cfg.avgoverfreq = 'no'; cfg.avgoverchan = 'no';
+    cfg.parameter = simField;
+    cfg.method = 'analytic'; cfg.tail = 0; cfg.statistic = 'depsamplesT';
+    cfg.design = [ones(1,n) 2*ones(1,n); 1:n 1:n];
+    cfg.ivar = 1; cfg.uvar = 2;
+    ft_warning off 'FieldTrip:getdimord:warning_dimord_could_not_be_determined'
+    stats_cell{end+1} = ft_freqstatistics(cfg, dat1, dat2); %#ok<AGROW>
+    dfs(end+1) = stats_cell{end}.df; %#ok<AGROW>
+end
+cfg = []; cfg.keepindividual = 'yes'; cfg.parameter = 'stat';
+stat_I = ft_freqgrandaverage(cfg, stats_cell{:});
+stat_I.df = dfs;
 end
 
 

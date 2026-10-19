@@ -8,6 +8,16 @@ function rsa_subject_level(subj, contrastType, freqLo, freqHi, pdat, bgFitMode)
 %
 %   subj          : subject ID (numeric or string), e.g. 3109
 %   contrastType  : 'Ispec'   -> within-item vs within-cat similarity
+%                   'IspecPaired' -> (2026-10-19, user) Isim as 'Ispec' plus
+%                                an ITEM-SPECIFIC Csim per Isim item X:
+%                                presentation 1 of X vs presentation 2 of
+%                                the other exemplar (1<->2) of X's category
+%                                (partner any response). Both files have
+%                                the same row order (one row per item, X's
+%                                presentation 1 always the FIRST trial, so
+%                                the time axes match) -> paired 1st-level
+%                                test (depsamplesT, rsa_group_level_perAge).
+%                                Own folder IspecPaired_<band>.
 %                   'IspecAll'-> as 'Ispec', but WITHOUT the response
 %                                filter (2026-10-18, user): ALL encoding
 %                                trials of exemplars 1-2, presentations
@@ -96,6 +106,8 @@ switch contrastType
         [sim_matA, sim_matB, nameA, nameB] = pairs_within_item_vs_cat(Data_logpow, Data_logpow_bl, useNewBaselineMethod);
     case 'IspecAll'
         [sim_matA, sim_matB, nameA, nameB] = pairs_within_item_vs_cat(Data_logpow, Data_logpow_bl, useNewBaselineMethod, false);
+    case 'IspecPaired'
+        [sim_matA, sim_matB, nameA, nameB] = pairs_item_vs_itemcat(Data_logpow, Data_logpow_bl, useNewBaselineMethod);
     case 'Catspec'
         [sim_matA, sim_matB, nameA, nameB] = pairs_within_vs_between_cat(Data_logpow, Data_logpow_bl, useNewBaselineMethod);
     case 'Bsim'
@@ -105,7 +117,7 @@ switch contrastType
         sim_matA = pairs_between_cat_allavg(Data_logpow, Data_logpow_bl, useNewBaselineMethod);
         nameA = 'between-cat'; sim_matB = []; nameB = '';
     otherwise
-        error('rsa_subject_level:contrastType', 'Unknown contrastType "%s" (expected Ispec, IspecAll, Catspec or Bsim)', contrastType)
+        error('rsa_subject_level:contrastType', 'Unknown contrastType "%s" (expected Ispec, IspecAll, IspecPaired, Catspec or Bsim)', contrastType)
 end
 
 %% Save
@@ -493,6 +505,40 @@ sim_matB.indtrials = Data_logpow.trialinfo2(sort(unique([pairs1;pairs2])),:);
 sim_matB.powspctrmOrig = sim_matB.powspctrm;
 sim_matB.powspctrm = sim_matB.powspctrm - sim_matB.powspctrmBL;
 
+end
+
+
+function [sim_matI, sim_matC, nameA, nameB] = pairs_item_vs_itemcat(Data_logpow, Data_logpow_bl, useNewBaselineMethod)
+% IspecPaired (2026-10-19, user): one Isim and one item-specific Csim per
+% item, row-aligned, for a PAIRED within-person test.
+%   Isim(X) = X presentation 1 vs X presentation 2 (as Ispec: exemplars 1-2,
+%             X later called 'old'/'similar', four experimental conditions)
+%   Csim(X) = X presentation 1 vs presentation 2 of the OTHER exemplar of
+%             X's category (exemplar 1<->2; partner any response, as the
+%             at-least-one-remembered Csim rule)
+% X's presentation 1 is the FIRST trial of both pairs (time1 axis), so the
+% two maps of an item share their first trial and their time1 axis; the
+% baseline correction uses the second trial's pre-stimulus spectrum, as
+% for every pair. Items whose partner trial is missing drop out of BOTH.
+nameA = 'within-item';
+nameB = 'within-catItem';
+ti = Data_logpow.trialinfo2;
+pres = cell2mat(ti(:,9)); exem = cell2mat(ti(:,8));
+resp = ti(:,11);
+valid = cellfun(@(r) ischar(r) && (strcmp(r,'old') || strcmp(r,'similar')), resp);
+expConds = {'normal','high-exemplar','high-repetition','high-repetition+exemplar'};
+isExp = cellfun(@(c) ischar(c) && any(strcmp(c, expConds)), ti(:,4));
+pairsI = zeros(0,2); pairsC = zeros(0,2);
+for x1 = find(pres == 1 & exem <= 2 & valid & isExp)'
+    x2 = find(strcmp(ti(:,7), ti{x1,7}) & pres == 2, 1);                       % X presentation 2
+    y2 = find(strcmp(ti(:,5), ti{x1,5}) & exem == 3 - exem(x1) & pres == 2, 1); % partner presentation 2
+    if isempty(x2) || isempty(y2), continue, end
+    pairsI(end+1,:) = [x1 x2]; %#ok<AGROW>
+    pairsC(end+1,:) = [x1 y2]; %#ok<AGROW>
+end
+fprintf('IspecPaired: %d items with Isim and item-specific Csim\n', size(pairsI,1));
+sim_matI = correlate_pairs_and_package(Data_logpow, Data_logpow_bl, pairsI, 'Computing within item similarity (paired design)', useNewBaselineMethod);
+sim_matC = correlate_pairs_and_package(Data_logpow, Data_logpow_bl, pairsC, 'Computing item-specific category similarity', useNewBaselineMethod);
 end
 
 
